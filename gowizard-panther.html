@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Performance 100% Score</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hello World</h1>  
+        <!-- START: MVF Widget -->
+<!-- START: MVF Widget -->
+<script type='text/javascript' src='https://chameleon-frontend-staging.mvfglobal.com/formLoader.min.js'></script>
+<script type='text/javascript'>
+    var inputData = {
+        domain: 'eu',
+        env: 'staging',
+        formId: '9662',
+        campaignId: '6220d6030a88c',
+        eventHandlers: {
+            initialWidgetLoad: function (eventInfo) {
+                eventInfo.event = "initialWidgetLoad";
+                window?.dataLayer?.push(eventInfo);
+            },
+            widgetVisible: function (eventInfo) {
+                eventInfo.event = "widgetVisible";
+                window?.dataLayer?.push(eventInfo);
+            },
+            initialWidgetInteraction: function (eventInfo) {
+                eventInfo.event = "initialWidgetInteraction";
+                window?.dataLayer?.push(eventInfo);
+            },
+            pageChanged: function (eventInfo) {
+                eventInfo.event = "pageChanged";
+                window?.dataLayer?.push(eventInfo);
+            },
+            questionAnswered: function (eventInfo) {
+                eventInfo.event = "questionAnswered";
+                window?.dataLayer?.push(eventInfo);
+            },
+            formSubmit: function (eventInfo) {
+                eventInfo.event = "formSubmit";
+                window?.dataLayer?.push(eventInfo);
+            },
+            formError: function (errorInfo) {
+                errorInfo.event = "formError";
+                window?.dataLayer?.push(errorInfo);
+            },
+        },
+        themeName: 'gowizard'
+    };
+    var formWidgetInfoObject = runFormWidgetLoader(inputData);
+</script>
+<!-- END: MVF Widget -->
+<!-- END: MVF Widget -->
+    </main>
+  </body>
+</html>

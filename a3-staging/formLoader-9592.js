@@ -1,0 +1,2194 @@
+/* eslint-disable func-names */
+/* eslint-disable no-undef */
+/* eslint-disable prefer-destructuring */
+/* eslint-disable block-scoped-var */
+/* eslint-disable valid-typeof */
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable prefer-rest-params */
+/* eslint-disable no-shadow */
+/* eslint-disable no-console */
+/* eslint-disable no-restricted-syntax */
+/* eslint-disable no-plusplus */
+/* eslint-disable no-param-reassign */
+/* eslint-disable no-bitwise */
+/* eslint-disable no-extend-native */
+/**
+ * NOTE: This script is compiled into ES5 syntax to ensure compatibility with older
+ * browsers such as IE9+, see https://www.w3schools.com/js/js_versions.asp and
+ * https://www.w3schools.com/js/js_es5.asp
+ */
+
+/**
+ * Polyfill support for old browser String startsWith method such as ios13/ios14
+ * required by https://github.com/google/closure-compiler/wiki/Supported-features#:~:text=String.prototype.startsWith
+ */
+if (!String.prototype.startsWith) {
+  Object.defineProperty(String.prototype, 'startsWith', {
+    value(search, rawPos) {
+      const pos = rawPos > 0 ? rawPos | 0 : 0;
+      return this.substring(pos, pos + search.length) === search;
+    },
+  });
+}
+
+/**
+ * Polyfill support for Array.prototype.includes()
+ * required by https://github.com/google/closure-compiler/wiki/Supported-features#:~:text=Array.prototype.includes
+ */
+if (!Array.prototype.includes) {
+  Array.prototype.includes = (search, start) => {
+    if (search instanceof RegExp) {
+      throw TypeError('first argument must not be a RegExp');
+    }
+    if (start === undefined) {
+      start = 0;
+    }
+    return this.indexOf(search, start) !== -1;
+  };
+}
+
+/**
+ * Main function / ENTRY POINT - runFormWidgetLoader
+ * To ensure browser support in IE, const, let, template strings and other modern
+ * features of ES6+ are not used in this script.
+ * @param {object} partnerSiteConfig - The provided argument object of this script
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function runFormWidgetLoader(partnerSiteConfig) {
+  const DEFAULT_FEATURE_FLAG_PATH = 'default';
+
+  /**
+   * sanitiseThemeName
+   * Normaliser function which returns the passed in value if it is among the
+   * valid theme names. If it is not, the theme name "default" gets returned.
+   * @param {string} themeName - The provided themeName string
+   */
+  function sanitiseThemeName(themeName) {
+    if (typeof themeName !== 'string') {
+      return 'chameleon';
+    }
+    const themeNamesMap = {
+      chameleon: 'chameleon',
+      rhubarb: 'rhubarb',
+      indigo: 'indigo',
+      custom: 'custom',
+      default: 'chameleon',
+      techco: 'rhubarb',
+      startups: 'indigo',
+      base: 'custom',
+      atlantic: 'atlantic',
+      gowizard: 'gowizard',
+    };
+    const mappedThemeName = themeNamesMap[themeName.toLowerCase()];
+    // TODO: After MVP: Replace this hardcoded map variable with an API integration
+    return mappedThemeName !== undefined ? mappedThemeName : 'chameleon';
+  }
+
+  /**
+   * inferDomainFromScriptSourceUrl
+   * This function obtains its own script source URL in order to examine which
+   * domain it contains ('eu' or 'ca'). If the URL is inconclusive or
+   * inaccessible, the default return value is 'eu'.
+   */
+  function inferDomainFromScriptSourceUrl() {
+    const allScripts = document.getElementsByTagName('script');
+    let domainFromSourceUrl = 'eu';
+    for (let i = 0; i < allScripts.length; i++) {
+      if (
+        allScripts[i].src &&
+        /formLoader\.min\.js/.exec(allScripts[i].src) &&
+        /mvfglobal\.com/.exec(allScripts[i].src) &&
+        /-ca\./.exec(allScripts[i].src)
+      ) {
+        domainFromSourceUrl = 'ca';
+      }
+    }
+    return domainFromSourceUrl;
+  }
+
+  function isIOS() {
+    return (
+      [
+        'iPad Simulator',
+        'iPhone Simulator',
+        'iPod Simulator',
+        'iPad',
+        'iPhone',
+        'iPod',
+      ].indexOf(navigator.platform) !== -1 ||
+      // iPad on iOS 13 detection
+      (navigator.userAgent.indexOf('Mac') !== -1 && 'ontouchend' in document)
+    );
+  }
+
+  function isMacOS() {
+    return navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  }
+
+  /**
+   * sanitiseEnvironmentAndDomain
+   * Normaliser function which returns the passed in env if it is 'staging'
+   * If it is not, the env gets defaulted to 'prod' and the second argument gets
+   * examined. Depending on the passed in domain, either 'eu' or 'ca' get returned.
+   * @param {string} env - The provided environment string (defaults to prod)
+   * @param {string} domain - The provided domain string (defaults to the domain
+   *                          that is present in the script source URL)
+   */
+  function sanitiseEnvironmentAndDomain(env, domain) {
+    env = env === 'staging' ? 'staging' : 'prod';
+    const domainHasBeenProvided = domain === 'ca' || domain === 'eu';
+    if (domainHasBeenProvided) {
+      domain = domain === 'ca' ? 'ca' : 'eu';
+    } else {
+      domain = inferDomainFromScriptSourceUrl();
+    }
+    return env === 'staging' ? env : domain;
+  }
+
+  getCookieValue = function (name) {
+    const match = window.document.cookie.match(
+      new RegExp(`(^| )${name}=([^;]+)`)
+    );
+    if (match) return match[2];
+  };
+
+  function sendOneTrustCookieConsentData(formIframe) {
+    const OneTrustConsentCookies = [
+      'OptanonConsent',
+      'OptanonAlertBoxClosed',
+      'usprivacy',
+      'euconsent-v2',
+      'eupubconsent-v2',
+    ];
+    const consentCookies = {};
+
+    OneTrustConsentCookies.forEach((cookieName) => {
+      const cookieValue = getCookieValue(cookieName);
+      if (cookieValue) {
+        consentCookies[cookieName] = cookieValue;
+      }
+    });
+
+    if (Object.values(consentCookies).length > 0) {
+      formIframe.contentWindow.postMessage(
+        `setCookies:${JSON.stringify(consentCookies)}`,
+        '*'
+      );
+    }
+  }
+
+  /**
+   * partitionFeatures
+   * This function will split up the features list into formLoaderFeatures and
+   * appFeatures in test settings. The updated object gets returned.
+   */
+  function partitionFeatures(testSettings) {
+    if (
+      !testSettings ||
+      !testSettings.features ||
+      testSettings.features.length === 0
+    ) {
+      return testSettings;
+    }
+    const FORMLOADER_ONLY_FEATURES = ['panther'];
+    testSettings.appFeatures = [];
+    testSettings.formLoaderFeatures = [];
+    for (const feature of testSettings.features) {
+      if (FORMLOADER_ONLY_FEATURES.includes(feature)) {
+        testSettings.formLoaderFeatures.push(feature);
+      } else {
+        testSettings.appFeatures.push(feature);
+      }
+    }
+    return testSettings;
+  }
+
+  function isFeatureEnabled(feature, featureList) {
+    if (!featureList || featureList.length === 0) return false;
+    return featureList.includes(feature);
+  }
+
+  /**
+   * getFeatureFlagPath
+   * This function will return a string of all the features marked as active
+   * in test settings. The features are joined by periods in alphabetical order.
+   */
+  function getFeatureFlagPath(testSettings) {
+    if (
+      !testSettings ||
+      !testSettings.appFeatures ||
+      testSettings.appFeatures.length === 0
+    ) {
+      return DEFAULT_FEATURE_FLAG_PATH;
+    }
+
+    const features = testSettings.appFeatures.map((x) => {
+      return x;
+    });
+    features.sort();
+
+    return features.join('.');
+  }
+
+  /**
+   * addVisibilityWatcher
+   * Calling this function will create a watcher which will trigger the widgetVisible event the first time that the iframe (75% of it) enters a users viewport.
+   */
+  function addVisibilityWatcher(eventCallback, widgetLabel, container) {
+    const eventInfo = { widgetLabel, iFrameId: container.id };
+    if (window.IntersectionObserver) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting === true) {
+            if (window.chameleon.shouldLogEventsToConsole) {
+              console.log('MVF EMBED EVENT INFO');
+              console.log('MVF EMBED EVENT Type: widgetVisible');
+              console.log(
+                'MVF EMBED EVENT DETAILS: widgetLabel: ',
+                widgetLabel
+              );
+              console.log('MVF EMBED IFRAMEID OF EVENT ORIGIN: ', container.id);
+            }
+
+            eventCallback(eventInfo);
+            observer.unobserve(container);
+          }
+        },
+        { threshold: [0.75] } // if 75% of the widget is visible in the viewport
+      );
+
+      observer.observe(container);
+    } else {
+      // Polyfill for some older browsers which do not have IntersectionObserver
+      const threshold = 0.75 * container.offsetHeight;
+      const onScrollCallback = () => {
+        const position = container.getBoundingClientRect();
+        if (
+          position.top < window.innerHeight - threshold &&
+          position.bottom >= threshold
+        ) {
+          eventCallback(eventInfo);
+          window.removeEventListener('scroll', onScrollCallback);
+        }
+      };
+      window.addEventListener('scroll', onScrollCallback);
+    }
+  }
+
+  /**
+   * validateTestSettings
+   * Predicate function which returns true if all validations pass and returns
+   * false along with error log messages being printed onto the console if any
+   * validation fails
+   * @param {object} testSettings - AB Test settings
+   */
+  function validateTestSettings(testSettings) {
+    function isString(x) {
+      return typeof x === 'string';
+    }
+
+    function isNumeric(x) {
+      return typeof x === 'number' || (isString(x) && /^-?\d+$/.test(x));
+    }
+
+    function isArrayOfStrings(array) {
+      return Array.isArray(array) && array.every(isString);
+    }
+
+    const testSettingsValidationDetails = {
+      formId: {
+        validationFunction: isNumeric,
+        errorMessage: 'formId should be a number',
+      },
+      features: {
+        validationFunction: isArrayOfStrings,
+        errorMessage: 'features should be an array of strings',
+      },
+    };
+
+    const errors = [];
+    const testSettingKeys = Object.keys(testSettings);
+    testSettingKeys.forEach((testSettingKey) => {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          testSettingsValidationDetails,
+          testSettingKey
+        )
+      ) {
+        const validationDetails = testSettingsValidationDetails[testSettingKey];
+        if (
+          !validationDetails.validationFunction(testSettings[testSettingKey])
+        ) {
+          errors.push(
+            `Invalid data type for the value of nested key-value pair: ${validationDetails.errorMessage}`
+          );
+        }
+      } else {
+        errors.push(
+          `Invalid key name for the key-value pair: ${testSettingKey}' => '${testSettings[testSettingKey]}`
+        );
+      }
+    });
+    if (errors.length !== 0) {
+      console.log(
+        `MVF Test Setting Error(s) below:\n${errors.join(
+          '\n'
+        )}\n\nPlease contact your MVF support team if you cannot resolve these via the provided suggestions.`
+      );
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * getTestFormId
+   * This function overrides the form id provided in input arguments with an A/B
+   * test version if it exists.
+   */
+  function getTestFormId(inputArgumentsFormId, testSettings) {
+    if (testSettings.formId) {
+      return testSettings.formId;
+    }
+    return inputArgumentsFormId;
+  }
+
+  /**
+   * getIframeSourceUrl
+   * Produces a Url which points to the correct form with the appropriate features and theme requested.
+   */
+  function getIframeSourceUrl(
+    partnerSiteConfig,
+    testSettings,
+    featureFlagPath,
+    themeName,
+    iFrameId
+  ) {
+    // In order to AB test the performance of forms, test settings can be added to the window
+    // in the form of an object via an Optimizely script or equivalent.
+    // If the test settings are in the correct format, those settings will be overwritten in the displayed form.
+    // If any settings are incorrect then the form will be based solely on inputValues.
+    let formId;
+    let featureString = '';
+
+    if (isFeatureEnabled('panther', testSettings?.formLoaderFeatures)) {
+      featureString = 'panther-';
+    }
+    if (!!testSettings && testSettings.formLoaderFeatures) {
+      delete testSettings.formLoaderFeatures;
+    }
+    if (!!testSettings && testSettings.appFeatures) {
+      delete testSettings.appFeatures;
+    }
+    if (!!testSettings && validateTestSettings(testSettings)) {
+      formId = getTestFormId(partnerSiteConfig.formId, testSettings);
+    } else {
+      featureFlagPath = DEFAULT_FEATURE_FLAG_PATH;
+      formId = partnerSiteConfig.formId;
+    }
+    if (partnerSiteConfig.env === 'dev') {
+      return `http://chameleon.localhost:2000/forms/${formId}/${featureFlagPath}/${themeName}#iFrameId=${iFrameId}`;
+    }
+    const envAndDomain = sanitiseEnvironmentAndDomain(
+      partnerSiteConfig.env,
+      partnerSiteConfig.domain
+    );
+
+    return `https://chameleon-frontend-${featureString}${envAndDomain}.mvfglobal.com/forms/${formId}/${featureFlagPath}/${themeName}.html#iFrameId=${iFrameId}`;
+  }
+
+  /**
+   * This function produces a unique HTML ID string by combining two nearly unique
+   * numbers together - context: partners want to have the ability to embed
+   * multiple iframes of Chameleon on to the web page by invoking this formLoader
+   * script multiple times from many snippets (which may or may not be a
+   * parallelised operation).
+   */
+  function produceUniqueIdString() {
+    const uniquifierSuffix = `${Date.now()}-${Math.random()}`.replace('.', '');
+    // Math.random() creates a floating-point, pseudo-random number between 0 (inclusive) and 1 (exclusive) The chance of it producing the same number across multiple invocations is slim but not impossible
+    // Date.now() returns the number of milliseconds elapsed since UNIX EPOCH (January 1, 1970). If two invocations of this script have been parallelised by the partner site, this could return an identical number
+    return `mvfFormWidget-${uniquifierSuffix}`.slice(0, 40);
+  }
+
+  // =================================================================================================================== //
+  // MUI HelperFunctions providing behavioural parity with Material UI for the loading bar                               //
+  // Source: mvf-external-components/node_modules/@material-ui/core/LinearProgress/LinearProgress.js, getColor function  //
+  // =================================================================================================================== //
+
+  /**
+   * Converts a color from CSS hex format to CSS rgb format.
+   *
+   * @param {string} color - Hex color, i.e. #nnn or #nnnnnn
+   * @returns {string} A CSS rgb color string
+   */
+
+  function hexToRgbAsPerMui(color) {
+    color = color.substr(1);
+    const re = new RegExp('.{1,'.concat(color.length >= 6 ? 2 : 1, '}'), 'g');
+    let colors = color.match(re);
+
+    if (colors && colors[0].length === 1) {
+      colors = colors.map((n) => {
+        return n + n;
+      });
+    }
+
+    return colors
+      ? 'rgb'.concat(colors.length === 4 ? 'a' : '', '(').concat(
+          colors
+            .map((n, index) => {
+              return index < 3
+                ? parseInt(n, 16)
+                : Math.round((parseInt(n, 16) / 255) * 1000) / 1000;
+            })
+            .join(', '),
+          ')'
+        )
+      : '';
+  }
+
+  /**
+   * Returns an object with the type and values of a color.
+   *
+   * Note: Does not support rgb % values.
+   *
+   * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
+   * @returns {object} - A MUI color object: {type: string, values: number[]}
+   */
+  function decomposeColorAsPerMui(color) {
+    // Idempotent
+    if (color.type) {
+      return color;
+    }
+    if (color.charAt(0) === '#') {
+      return decomposeColorAsPerMui(hexToRgbAsPerMui(color));
+    }
+    const marker = color.indexOf('(');
+    const type = color.substring(0, marker);
+
+    let values = color.substring(marker + 1, color.length - 1).split(',');
+    values = values.map((value) => {
+      return parseFloat(value);
+    });
+    return {
+      type,
+      values,
+    };
+  }
+
+  /**
+   * Returns a number whose value is limited to the given range.
+   *
+   * @param {number} value The value to be clamped
+   * @param {number} min The lower boundary of the output range
+   * @param {number} max The upper boundary of the output range
+   * @returns {number} A number in the range [min, max]
+   */
+  function clampAsPerMui(value) {
+    const min =
+      arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+    const max =
+      arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 1;
+
+    return Math.min(Math.max(min, value), max);
+  }
+
+  /**
+   * Converts a color object with type and values to a string.
+   *
+   * @param {object} color - Decomposed color
+   * @param {string} color.type - One of: 'rgb', 'rgba', 'hsl', 'hsla'
+   * @param {array} color.values - [n,n,n] or [n,n,n,n]
+   * @returns {string} A CSS color string
+   */
+
+  function recomposeColorAsPerMui(color) {
+    const { type } = color;
+    let { values } = color;
+
+    if (type.indexOf('rgb') !== -1) {
+      // Only convert the first 3 values to int (i.e. not alpha)
+      values = values.map((n, i) => {
+        return i < 3 ? parseInt(n, 10) : n;
+      });
+    } else if (type.indexOf('hsl') !== -1) {
+      values[1] = ''.concat(values[1], '%');
+      values[2] = ''.concat(values[2], '%');
+    }
+
+    return ''.concat(type, '(').concat(values.join(', '), ')');
+  }
+
+  /**
+   * Darkens a color.
+   *
+   * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
+   * @param {number} coefficient - multiplier in the range 0 - 1
+   * @returns {string} A CSS color string. Hex input values are returned as rgb
+   */
+
+  function lightenAsPerMui(color, coefficient) {
+    color = decomposeColorAsPerMui(color);
+    coefficient = clampAsPerMui(coefficient);
+
+    if (color.type.indexOf('hsl') !== -1) {
+      color.values[2] += (100 - color.values[2]) * coefficient;
+    } else if (color.type.indexOf('rgb') !== -1) {
+      for (let i = 0; i < 3; i += 1) {
+        color.values[i] += (255 - color.values[i]) * coefficient;
+      }
+    }
+
+    return recomposeColorAsPerMui(color);
+  }
+
+  // ================================================================================================================ //
+  // END OF MUI HelperFunctions providing behavioural parity with Material UI for the loading bar                     //
+  // ================================================================================================================ //
+
+  /**
+   * This function makes use of Material UI's helper functions in order to infer
+   * the lightened color shade for the loading bar that is implemented from scratch
+   * in this script using only CSS.
+   */
+  function inferSecondaryColourFromMUIHelperFunctions(
+    colorString,
+    isPantherFeatureInUse
+  ) {
+    if (isPantherFeatureInUse) {
+      // TODO: Once panther work has been merged secondary color will always be rgb(247,247, 247). We can then
+      // simplify by removing this function and hard coding the color into the createAnimatedLoadingBar function.
+      return 'rgb(247,247, 247)';
+    }
+    return lightenAsPerMui(colorString, 0.62);
+  }
+
+  /**
+   * This function extracts the primary and secondary colours of the progress bar from the
+   * settings for every theme. They can be inferred in part from theme-specific settings
+   * in the mvf-external-components repo code for each theme and need to be in part
+   * calculated via Material UI's helper functions.
+   */
+  function extractColourFromTheme(partnerSiteConfig, isPantherFeatureInUse) {
+    // NOTE: Any changes to the colour values in the themes (defined in the External components repo) will need
+    //       to be reapplied here and are not inferred programmatically. This keeps the loading bar fast to render.
+    //       Please keep the rgb values or hex codes in here aligned to the value set specifically in the `primary.main`
+    //       object of the various palettes, in here:
+    //       https://bitbucket.org/mvfglobal/mvf-external-components/src/master/src/Themes/chameleonTheme.ts &
+    //       https://bitbucket.org/mvfglobal/mvf-external-components/src/master/src/Themes/indigoTheme.ts &
+    //       https://bitbucket.org/mvfglobal/mvf-external-components/src/master/src/Themes/rhubarbTheme.ts &
+    //       https://bitbucket.org/mvfglobal/mvf-external-components/src/master/src/Themes/atlanticTheme.ts &
+    //       https://bitbucket.org/mvfglobal/mvf-external-components/src/master/src/Themes/gowizardTheme.ts &
+
+    let customThemePrimaryColour = 'rgb(134, 134, 134)'; // Depends on the palette overrides input
+    if (
+      isPantherFeatureInUse &&
+      partnerSiteConfig.paletteOverrides &&
+      partnerSiteConfig.paletteOverrides.progressBarFilledColor
+    ) {
+      customThemePrimaryColour =
+        partnerSiteConfig.paletteOverrides.progressBarFilledColor;
+    } else if (
+      partnerSiteConfig.paletteOverrides &&
+      partnerSiteConfig.paletteOverrides.answerSelectedColor
+    ) {
+      customThemePrimaryColour =
+        partnerSiteConfig.paletteOverrides.answerSelectedColor;
+    }
+
+    const chameleonThemePrimaryColour = 'rgb(26, 155, 219)'; // Depends on theme colour value in the External components repo
+    const indigoThemePrimaryColour = 'rgb(0, 181, 155)'; // Depends on theme colour value in the External components repo
+    const rhubarbThemePrimaryColour = 'rgb(30, 188, 216)'; // Depends on theme colour value in the External components repo
+    const atlanticThemePrimaryColour = 'rgb(18, 189, 156)'; // Depends on theme colour value in the External components repo
+    const gowizardThemePrimaryColour = 'rgb(85, 191, 229)'; // Depends on theme colour value in the External components repo
+
+    const themeNameBarColoursMap = {
+      custom: {
+        primaryColour: customThemePrimaryColour,
+        secondaryColour: inferSecondaryColourFromMUIHelperFunctions(
+          customThemePrimaryColour,
+          isPantherFeatureInUse
+        ),
+      }, // ExpertMarket theme
+      chameleon: {
+        primaryColour: chameleonThemePrimaryColour,
+        secondaryColour: inferSecondaryColourFromMUIHelperFunctions(
+          chameleonThemePrimaryColour,
+          isPantherFeatureInUse
+        ),
+      },
+      indigo: {
+        primaryColour: indigoThemePrimaryColour,
+        secondaryColour: inferSecondaryColourFromMUIHelperFunctions(
+          indigoThemePrimaryColour,
+          isPantherFeatureInUse
+        ),
+      },
+      rhubarb: {
+        primaryColour: rhubarbThemePrimaryColour,
+        secondaryColour: inferSecondaryColourFromMUIHelperFunctions(
+          rhubarbThemePrimaryColour,
+          isPantherFeatureInUse
+        ),
+      },
+      atlantic: {
+        primaryColour: atlanticThemePrimaryColour,
+        secondaryColour: inferSecondaryColourFromMUIHelperFunctions(
+          atlanticThemePrimaryColour,
+          isPantherFeatureInUse
+        ),
+      },
+      gowizard: {
+        primaryColour: gowizardThemePrimaryColour,
+        secondaryColour: inferSecondaryColourFromMUIHelperFunctions(
+          gowizardThemePrimaryColour,
+          isPantherFeatureInUse
+        ),
+      },
+    };
+
+    // TODO: Replace this hardcoded map variable with an API integration
+    return themeNameBarColoursMap[
+      sanitiseThemeName(partnerSiteConfig.themeName)
+    ];
+  }
+
+  /**
+   * This function uses CSS and basic HTML elements to create a loading bar
+   * through CSS animations. This is a preferred approach to loading a premade
+   * remote JS/React/Material UI component due to significant latency savings.
+   * It is much faster and more light weight to render CSS.
+   */
+  function createAnimatedLoadingBar(
+    formWidget,
+    colours,
+    partnerSiteConfig,
+    isPantherFeatureInUse
+  ) {
+    const formWidgetWidth = formWidget.clientWidth;
+    const formWidgetHeight = formWidget.clientHeight;
+    const loadingBar = document.createElement('div');
+    const slider = document.createElement('div');
+    const line = document.createElement('div');
+    const increasingSubline = document.createElement('div');
+    const decreasingSubline = document.createElement('div');
+    const themeName = sanitiseThemeName(partnerSiteConfig.themeName);
+    let borderStyle;
+    const dimensions = `width: ${formWidgetWidth}px; height: ${formWidgetHeight}px`;
+    if (themeName !== 'gowizard') {
+      if (partnerSiteConfig.containerId) {
+        borderStyle =
+          partnerSiteConfig.borderEnabled ||
+          partnerSiteConfig.borderEnabled === undefined
+            ? 'border-radius: 4px; border-style: none;'
+            : 'border-radius: inherit; border-style: none;';
+      } else {
+        borderStyle =
+          partnerSiteConfig.borderEnabled ||
+          partnerSiteConfig.borderEnabled === undefined
+            ? 'border-radius: 4px; border-style: none;'
+            : 'border: none;';
+      }
+    } else {
+      borderStyle =
+        partnerSiteConfig.borderEnabled ||
+        partnerSiteConfig.borderEnabled === undefined
+          ? 'border-radius: 13px; border-style: none;'
+          : 'border-radius: inherit; border-style: none;';
+    }
+
+    loadingBar.setAttribute(
+      'style',
+      `${borderStyle}overflow: hidden; position: absolute; ${dimensions}`
+    );
+
+    // NOTE: In order to achieve this hydration animation, nesting of CSS classes is needed
+    //       But in the case of multiple embeds, each widget and their loadingBars need to be
+    //       uniquely identified. Therefore, we'll create unique class names.
+    const uniquifierSuffix = `${Date.now()}-${Math.random()}`.replace('.', '');
+    const sliderClass = `mvf-loading-slider-${uniquifierSuffix}`;
+    const lineClass = `mvf-loading-line-${uniquifierSuffix}`;
+    const sublineClass = `mvf-loading-subline-${uniquifierSuffix}`;
+    const incClass = 'mvf-loading-inc-';
+    const decClass = 'mvf-loading-dec-';
+    slider.setAttribute('class', sliderClass);
+    line.setAttribute('class', lineClass);
+    increasingSubline.setAttribute('class', `${sublineClass} ${incClass}`);
+    decreasingSubline.setAttribute('class', `${sublineClass} ${decClass}`);
+
+    const cssAnimation = document.createElement('style');
+    cssAnimation.setAttribute('type', 'text/css');
+
+    let loaderHeight = 20;
+    if (isPantherFeatureInUse) {
+      loaderHeight = 25;
+    }
+    const rules = document.createTextNode(
+      `.${sliderClass} {\n` +
+        `box-sizing: border-box; position: relative; width:${formWidgetWidth}px; height:${loaderHeight}px; overflow-x: hidden\n}\n` +
+        `.${lineClass} {\nbox-sizing: border-box; position: absolute; background:${colours.secondaryColour};` +
+        `width:100%; height:${loaderHeight}px;\n}\n.${sublineClass} {\nbox-sizing: border-box; position:absolute; background:${colours.primaryColour};height:${loaderHeight}px;\n}\n.${incClass} {\nanimation: increase 2.1s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;` +
+        `\n}\n.${decClass} {animation: decrease 2.1s cubic-bezier(0.165, 0.84, 0.44, 1) 1.15s infinite;\n}@keyframes increase {\n` +
+        ` from { left: -5%; width: 5%; }\n to { left: 130%; width: 100%; }\n}\n` +
+        `@keyframes decrease {\n from { left: -80%; width: 80%; }\nto { left: 110%; width: 10%;}\n}`
+    );
+    cssAnimation.appendChild(rules);
+    document.getElementsByTagName('head')[0].appendChild(cssAnimation);
+
+    slider.appendChild(line);
+    slider.appendChild(increasingSubline);
+    slider.appendChild(decreasingSubline);
+    loadingBar.appendChild(slider);
+
+    return loadingBar;
+  }
+
+  const formWidgetInfoObject = {};
+  // The overarching info object
+  // hides implementation details about how error messages from the formWidget
+  // iFrame arrive and get processed and presents a simple
+  // single informational interface to the partner site code
+  formWidgetInfoObject.loadingErrors = [];
+
+  // This command buffer will store incoming function calls that get invoked by
+  // customer code prior to the widget having fully loaded. It then remembers
+  // those command invocation attempts and replays them in order as soon as the
+  // widget is ready
+  formWidgetInfoObject.__private__ = {
+    commandBuffer: [],
+  };
+
+  const featureTestSettings = partitionFeatures(window.chameleonTestSettings);
+  const featureFlagPath = getFeatureFlagPath(window.chameleonTestSettings);
+
+  const isPantherFeatureInUse = isFeatureEnabled(
+    'panther',
+    featureTestSettings?.formLoaderFeatures
+  );
+
+  // These paging variables will ensure that the repositioning logic encapsulated within
+  // the betaAutoScroll feature only kicks in where it doesn't worsen page speed insights
+  if (!window.__private__) {
+    window.__private__ = {
+      paging: {},
+    };
+  }
+  if (!window.__private__.paging) {
+    window.__private__.paging = {};
+  }
+
+  if (isPantherFeatureInUse) {
+    if (window.__private__.autoZoom === undefined) {
+      window.__private__.autoZoom = { isSetupComplete: false };
+    }
+  }
+
+  const minimumWidgetHeight = isPantherFeatureInUse ? '450px' : '400px';
+  const maximumWidgetHeight = '950px';
+  // This minimum height value will be enforced as the hard limit when partners
+  // enable the 'betaDynamicHeight' feature by passing a value of true into this optional
+  // input config.
+  // NOTE: If this value changes, also update it in Chameleon (helpers/autoScroll.js),
+  //       alternatively, send it in via browserMessages and keep/accesss it in state.
+
+  /**
+   * Workaround for iOS auto-zoom issue (WF-4074)
+   * This temporarily disables the parent page's ability to change zoom whilst any of the MVF embeds is focused on by the user
+   */
+  if (isPantherFeatureInUse) {
+    if (isIOS() && !window.__private__.autoZoom.isSetupComplete) {
+      window.__private__.autoZoom.viewport = document.querySelector(
+        'meta[name=viewport]'
+      );
+      if (window.__private__.autoZoom.viewport?.content) {
+        // Clone (copy by value) the original viewport settings on the parent page as a separate reference
+        // in order to be able to restore them again after user interactions with the widget are finished
+        window.__private__.autoZoom.originalParentPageViewport = JSON.parse(
+          JSON.stringify(window.__private__.autoZoom.viewport.content)
+        );
+      }
+      if (
+        !window.__private__.autoZoom.widgets ||
+        !Array.isArray(window.__private__.autoZoom.widgets)
+      ) {
+        window.__private__.autoZoom.widgets = [];
+      }
+
+      window.focus();
+      window.__private__.autoZoom.hasAWidgetBeenSelected = false;
+      window.__private__.autoZoom.widgetInteractionListener =
+        window.addEventListener('blur', () => {
+          if (
+            window.__private__.autoZoom.widgets.some(
+              (widget) => document.activeElement === widget
+            )
+          ) {
+            window.__private__.autoZoom.hasAWidgetBeenSelected = true;
+
+            if (window.__private__.autoZoom.viewport?.content) {
+              if (
+                window.__private__.autoZoom.originalParentPageViewport?.match(
+                  /user-scalable *= *(no|yes|0.*|1.*)/
+                )
+              ) {
+                window.__private__.autoZoom.viewport.setAttribute(
+                  'content',
+                  window.__private__.autoZoom.originalParentPageViewport.replaceAll(
+                    /user-scalable *= *(no|yes|0[^,]*|1[^,]*)/g,
+                    'user-scalable=no'
+                  )
+                );
+              } else {
+                window.__private__.autoZoom.viewport.setAttribute(
+                  'content',
+                  `${window.__private__.autoZoom.originalParentPageViewport}, user-scalable=no`
+                );
+              }
+            } else {
+              window.__private__.autoZoom.metaTag =
+                document.createElement('meta');
+              window.__private__.autoZoom.metaTag.name = 'viewport';
+              window.__private__.autoZoom.metaTag.content =
+                'width=device-width, initial-scale=1, maximum-scale=10, user-scalable=no'; // Setting default values for most of these except for the necessary value of 'no' for the zoom control property 'user-scalable' and width (which has no default value according to https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag)
+              document
+                .getElementsByTagName('head')[0]
+                .appendChild(window.__private__.autoZoom.metaTag);
+            }
+          }
+          window.removeEventListener(
+            'blur',
+            window.__private__.autoZoom.widgetInteractionListener
+          );
+        });
+
+      window.__private__.autoZoom.widgetBlurListener = window.addEventListener(
+        'focus',
+        () => {
+          if (
+            window.__private__.autoZoom.hasAWidgetBeenSelected === true &&
+            window.__private__.autoZoom.widgets.every(
+              (widget) => document.activeElement !== widget
+            )
+          ) {
+            window.__private__.autoZoom.hasAWidgetBeenSelected = false;
+
+            if (window.__private__.autoZoom.originalParentPageViewport) {
+              // Restore the original viewport settings of the parent page now that the user's focus has shifted away from the widget
+              window.__private__.autoZoom.viewport.setAttribute(
+                'content',
+                JSON.parse(
+                  JSON.stringify(
+                    window.__private__.autoZoom.originalParentPageViewport
+                  )
+                )
+              );
+            } else {
+              // Re-enable the user's ability to zoom
+              window.__private__.autoZoom.viewport.setAttribute(
+                'content',
+                'width=device-width, initial-scale=1, maximum-scale=10, user-scalable=yes' // Setting default values for most of these except for width (which has no default value according to https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag)
+              );
+            }
+          }
+          window.removeEventListener(
+            'focus',
+            window.__private__.autoZoom.widgetBlurListener
+          );
+        }
+      );
+      window.__private__.autoZoom.isSetupComplete = true;
+    }
+  }
+
+  /**
+   * validateInputArgument
+   * Predicate function which returns true if all validations pass and returns
+   * false along with error log messages being printed onto the console if any
+   * validation fails
+   * @param {object} inputArgument - The provided argument object of this script
+   */
+  function validateInputArgument(inputArgument) {
+    if (inputArgument) {
+      if (typeof inputArgument === 'object' && !Array.isArray(inputArgument)) {
+        const validTypesMap = {
+          formId: 'string',
+          formIdentifier: 'string', // remains here for backwards compatibility - see the comment below about 'CAPTURE naming conventions'
+          themeName: 'string',
+          campaignId: 'string',
+          widgetLabel: 'string',
+          testMode: 'boolean',
+          containerId: 'string',
+          height: 'number',
+          maxWidth: 'number',
+          isConsentStatementAboveNavigation: 'boolean',
+          borderEnabled: 'boolean',
+          headerEnabled: 'boolean',
+          paletteOverrides: 'object',
+          eventHandlers: 'object',
+          env: 'string',
+          domain: 'string',
+          belowFold: 'boolean',
+          betaDynamicHeight: 'boolean',
+          betaAutoScroll: 'boolean',
+          betaFontOverride: 'string',
+          useCidFromURL: 'boolean',
+        };
+        const validEventNameTypesMap = {
+          initialWidgetLoad: 'function',
+          initialWidgetInteraction: 'function',
+          widgetVisible: 'function',
+          pageChanged: 'function',
+          questionAnswered: 'function',
+          finalSubmission: 'function', // Deprecated in favour of formSubmit but required for backwards compatibility with old snippets
+          formSubmit: 'function',
+          submissionStatusUpdated: 'function',
+          formError: 'function',
+          failedForwardPageNavigation: 'function',
+        };
+        const validPaletteOverrideNames = [
+          'answerSelectedColor',
+          'widgetBackgroundColor',
+          'secondaryBackgroundColor',
+          'answerBackgroundColor',
+          'answerUnselectedColor',
+          'continueButtonColor',
+          'continueButtonHoverColor',
+          'scrollIndicatorColor',
+          'backButtonColor',
+          'backButtonHoverColor',
+          'primaryTextColor',
+          'secondaryTextColor',
+          'continueButtonTextColor',
+          'progressBarFilledColor',
+        ];
+        const mandatoryInputKeysPresenceMap = {
+          formId: false,
+        };
+        const inputKeys = Object.keys(inputArgument);
+        const inputEventNames =
+          inputArgument.eventHandlers &&
+          typeof inputArgument.eventHandlers === 'object' &&
+          !Array.isArray(inputArgument.eventHandlers)
+            ? Object.keys(inputArgument.eventHandlers)
+            : [];
+        const paletteOverridesNames =
+          inputArgument.paletteOverrides &&
+          typeof inputArgument.paletteOverrides === 'object' &&
+          !Array.isArray(inputArgument.paletteOverrides)
+            ? Object.keys(inputArgument.paletteOverrides)
+            : [];
+        const errors = [];
+        inputKeys.forEach((inputKey) => {
+          if (Object.prototype.hasOwnProperty.call(validTypesMap, inputKey)) {
+            if (
+              typeof inputArgument[inputKey] !== validTypesMap[inputKey] ||
+              (inputKey === 'eventHandlers' &&
+                Array.isArray(inputArgument[inputKey])) ||
+              (inputKey === 'campaignId' &&
+                !inputArgument[inputKey].match(/^[0-9a-fA-F]{13}$/))
+            ) {
+              const formatErrorMessageInfix =
+                inputKey === 'campaignId'
+                  ? "string with a format of 13 hex characters, e.g. '0123456abcdef'"
+                  : validTypesMap[inputKey];
+              errors.push(
+                `Invalid data type for the value of key-value pair: '${inputKey}' => '${inputArgument[inputKey]}'. Please change this value to be a ${formatErrorMessageInfix}.`
+              );
+            }
+            mandatoryInputKeysPresenceMap[inputKey] = true;
+          } else {
+            errors.push(
+              `Invalid key name for the key-value pair: '${inputKey}' => '${
+                inputArgument[inputKey]
+              }'. Please check the spelling and make use of the following key names only: ${Object.keys(
+                validTypesMap
+              )}`
+            );
+          }
+        });
+        Object.keys(mandatoryInputKeysPresenceMap).forEach((inputKey) => {
+          const present = mandatoryInputKeysPresenceMap[inputKey];
+          if (present === false) {
+            errors.push(
+              `Missing mandatory key-value pair for the key: '${inputKey}'. Please add this into your inputConfig data for calling the 'runFormWidgetLoader()' function of this loader script.`
+            );
+          }
+        });
+        inputEventNames.forEach((inputEventName) => {
+          if (
+            Object.prototype.hasOwnProperty.call(
+              validEventNameTypesMap,
+              inputEventName
+            )
+          ) {
+            if (
+              typeof inputArgument.eventHandlers[inputEventName] !==
+              validEventNameTypesMap[inputEventName]
+            ) {
+              errors.push(
+                `Invalid data type for the value of nested key-value pair: eventHandlers.${inputEventName} => '${inputArgument.eventHandlers[inputEventName]}'. Please change this value to be a function.`
+              );
+            }
+          } else {
+            errors.push(
+              `Invalid key name for the nested key-value pair: eventHandlers.${inputEventName} => '${
+                inputArgument.eventHandlers[inputEventName]
+              }'. Please check the spelling and make use of the following event names only: ${Object.keys(
+                validEventNameTypesMap
+              )}.`
+            );
+          }
+        });
+        const isValidColor = (colorString) => {
+          const hexWithAlphaColorMatch = /^(#)((?:[A-Fa-f0-9]{3,4}){1,2})$/;
+          const rgbaColorMatch =
+            /^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/;
+          return (
+            typeof colorString === 'string' &&
+            (hexWithAlphaColorMatch.exec(colorString) !== null ||
+              rgbaColorMatch.exec(colorString) !== null)
+          );
+        };
+        paletteOverridesNames.forEach((paletteOverrideName) => {
+          const paletteOverrideString =
+            inputArgument.paletteOverrides[paletteOverrideName];
+          if (!validPaletteOverrideNames.indexOf(paletteOverrideName) >= 0) {
+            if (!isValidColor(paletteOverrideString)) {
+              errors.push(
+                `Invalid data type for the value of nested key-value pair: eventHandlers.${paletteOverrideName} => '${paletteOverrideString}'. Please change this value to be an RGB/RGBA/Hex/Hex+A color code string.`
+              );
+            }
+          } else {
+            errors.push(
+              `Invalid key name for the nested key-value pair: paletteOverrides.${paletteOverrideName} => '${
+                inputArgument.paletteOverrides[paletteOverrideName]
+              }'. Please check the spelling and make use of the following event names only: ${Object.keys(
+                validPaletteOverrideNames
+              )}.`
+            );
+          }
+        });
+
+        if (errors.length === 0) {
+          if (partnerSiteConfig.containerId) {
+            const parentContainerOfIframeWidget = document.getElementById(
+              partnerSiteConfig.containerId
+            );
+            if (parentContainerOfIframeWidget) {
+              // ALL VALIDATIONS PASSED
+              return true;
+            }
+            console.log(
+              `MVF Form Loader Error - Container element of your provided id '${partnerSiteConfig.containerId}' for mvfFormWidget cannot be found. Please check the spelling and make sure that the HTML element is present on the page and is positioned above the loader scripts in the body section. Alternatively, please contact your MVF support team.`
+            );
+            formWidgetInfoObject.loadingErrors.push(
+              `MVF Form Loader Error - Container element of your provided id '${partnerSiteConfig.containerId}' for mvfFormWidget cannot be found. Please check the spelling and make sure that the HTML element is present on the page and is positioned above the loader scripts in the body section. Alternatively, please contact your MVF support team.`
+            );
+            return false;
+          }
+          // ALL VALIDATIONS PASSED
+          return true;
+        }
+        console.log(
+          `MVF Form Loader Error(s) below:\n${errors.join(
+            '\n'
+          )}\n\nPlease contact your MVF support team if you cannot resolve these via the provided suggestions.`
+        );
+        formWidgetInfoObject.loadingErrors.push(
+          `MVF Form Loader Error(s) below:\n${errors.join(
+            '\n'
+          )}\n\nPlease contact your MVF support team if you cannot resolve these via the provided suggestions.`
+        );
+        return false;
+      }
+      console.log(
+        `MVF Form Loader Error - Invalid input argument\n${partnerSiteConfig}\n. Please pass in a JS object to the 'runFormWidgetLoader()' function call or contact your MVF support team, alternatively.`
+      );
+      formWidgetInfoObject.loadingErrors.push(
+        `MVF Form Loader Error - Invalid input argument\n${partnerSiteConfig}\n. Please pass in a JS object to the 'runFormWidgetLoader()' function call or contact your MVF support team, alternatively.`
+      );
+      return false;
+    }
+    console.log(
+      "MVF Form Loader Error - Missing input argument. Please pass in a JS object to the 'runFormWidgetLoader()' function call or contact your MVF support team, alternatively."
+    );
+    formWidgetInfoObject.loadingErrors.push(
+      "MVF Form Loader Error - Missing input argument. Please pass in a JS object to the 'runFormWidgetLoader()' function call or contact your MVF support team, alternatively."
+    );
+    return false;
+  }
+
+  /**
+   * This predicate function instructs the app to navigate back a page if the form is not already on the first page.
+   * It returns false if no argument or any invalid argument (i.e. anything but the string 'back') got passed in.
+   * It also returns false if the form is on page 1 at the point of invocation.
+   * It returns true if the form is on pages 2 and beyond (pre-submission) and will attempt to perform back-navigation by sending an instruction to the app to do so.
+   * The assumption is that only a single embed (specifically, a single snippet) can call this function at a time.
+   */
+  formWidgetInfoObject.navigatePage = function (direction) {
+    if (typeof direction !== 'string' || direction !== 'back') {
+      return false;
+    }
+    if (
+      !window.__private__?.paging ||
+      !window.__private__.paging[this.iFrameId]?.currentPage ||
+      window.__private__.paging[this.iFrameId]?.currentPage === 1 ||
+      window.__private__.paging[this.iFrameId].formSubmitted === true
+    ) {
+      return false;
+    }
+    formIframe.contentWindow.postMessage('navigation:back', '*');
+    return true;
+  }.bind(formWidgetInfoObject);
+
+  /**
+   * This function auto-moves the user's viewport such that it places the widget at the top of the visible area
+   * (without affecting zoom levels). Should the webpage contain a fixed header bar or multiple thereof, this
+   * code will identify it/them and take its/their height as an extra offset to place the widget just under
+   * all fixed headers.
+   * This code triggers after any CSS transition on the parent div ends. For the purposes of this loader script,
+   * that is at the end of every dynamic height adjustment, which happens on page navigation.
+   */
+  function repositionWidgetWithAutoScroll(
+    formIframe,
+    parentContainer,
+    invokeAutoScrollImmediately = false
+  ) {
+    const parentContainerOfIframeWidget =
+      parentContainer || formIframe?.parentNode;
+    function autoScrollWidget(checkPaging = true) {
+      if (
+        checkPaging &&
+        window.__private__.paging[formIframe.id].currentPage === 1 &&
+        window.__private__.paging[formIframe.id].previousPage === undefined
+      ) {
+        // Only if we are not loading the initial page, autoScroll should kick in immediately after a dynamic resize
+        return undefined;
+      }
+      // Step 1 of 2 - Identifying the presence of a fixed elements which restrict the visible window area and calculating any additional vertical offset
+      let heightOfAllFixedHeaderBars = 0;
+      let heightOfAllFixedFooterBars = 0;
+      const elements = document.body.getElementsByTagName('*');
+      /* NOTE: This code may impede performance and the auto-scroll may seem delayed (if the web page contains many
+       *       (e.g. > 100000 elements) since it iterates over each one in search for a potential fixed/sticky headerbar
+       */
+
+      for (let i = 0; i < elements.length; i++) {
+        const computedStyleOfElement = window.getComputedStyle(
+          elements[i],
+          null
+        );
+        if (
+          (computedStyleOfElement.getPropertyValue('position') === 'fixed' ||
+            computedStyleOfElement.getPropertyValue('position') === 'sticky') &&
+          elements[i].clientWidth === document.body.clientWidth &&
+          computedStyleOfElement.getPropertyValue('display') !== 'none' &&
+          computedStyleOfElement.getPropertyValue('opacity') !== '0'
+        ) {
+          if (
+            elements[i].getBoundingClientRect().top <=
+            formIframe.getBoundingClientRect().top
+          ) {
+            heightOfAllFixedHeaderBars += elements[i].clientHeight;
+          } else {
+            heightOfAllFixedFooterBars += elements[i].clientHeight;
+          }
+        }
+      }
+      const heightOfAllFixedElements =
+        heightOfAllFixedHeaderBars + heightOfAllFixedFooterBars;
+      const heightOfVisibleWindowArea =
+        window.innerHeight - heightOfAllFixedElements;
+      const heightDifferenceBetweenWidgetAndVisibleWindowArea =
+        heightOfVisibleWindowArea - formIframe.clientHeight;
+      const yOffsetForVerticalCentering =
+        heightDifferenceBetweenWidgetAndVisibleWindowArea > 0
+          ? heightDifferenceBetweenWidgetAndVisibleWindowArea / 2
+          : 0;
+
+      // Step 2 of 2 - Shifting the position of the widget (excl. all sticky.fixed header bars)
+      const currentWidgetPositionY = formIframe.getBoundingClientRect().y;
+      window.scroll({
+        top:
+          currentWidgetPositionY +
+          window.pageYOffset -
+          heightOfAllFixedHeaderBars -
+          yOffsetForVerticalCentering,
+        behavior: 'smooth',
+      });
+    }
+    if (invokeAutoScrollImmediately) {
+      autoScrollWidget(true);
+    } else {
+      // Invoke auto scroll after the widget resize completes. Its transition duration is governed by
+      const defaultResizeDuration = isPantherFeatureInUse ? 500 : 110;
+      const numericWidgetResizeDuration =
+        window.__private__.variableHeightTransitionStyle.match(/\d+/);
+      const delayUntilWidgetResizeIsDone = numericWidgetResizeDuration
+        ? parseInt(numericWidgetResizeDuration[0], 10)
+        : defaultResizeDuration;
+      parentContainerOfIframeWidget.addEventListener('transitionstart', () =>
+        setTimeout(autoScrollWidget, delayUntilWidgetResizeIsDone)
+      );
+    }
+  }
+
+  //
+  // Step 1 of 4 - Validate argument object (keys and data types of all values)
+  //
+
+  // Patch the partnerSiteConfig input object for backwards compatibility and copy
+  // over any value assigned to the outdated formIdentifier field over to the preferred formId field.
+  // Context:
+  // Since the mandatory field 'formIdentifier' got renamed to 'formId' (to be consistent with CAPTURE naming conventions)
+  // requiring this updated name would be a breaking change to all live embeds on partner sites, until they would update
+  // their snippets. To prevent this unfriendly consequence, this script will now accept either of the two field names.
+  if (
+    Object.prototype.hasOwnProperty.call(partnerSiteConfig, 'formIdentifier')
+  ) {
+    partnerSiteConfig.formId = partnerSiteConfig.formIdentifier;
+    // NOTE: In the logic of the validateInputArgument() function, any bad input data that users have assigned to formIdentifier
+    //       will get flagged as bad input data to the formId field. Be prepared to explain this when facing a support issue.
+  }
+
+  // Google accepted font mapping to font family string
+  const fontMappings = {
+    publicsans: {
+      name: 'Public Sans',
+      fontFamily: "'Public Sans', sans-serif",
+    },
+    inter: {
+      name: 'Inter',
+      fontFamily: "'Inter', sans-serif",
+    },
+    barlow: {
+      name: 'Barlow',
+      fontFamily: "'Barlow', sans-serif",
+    },
+    montserrat: {
+      name: 'Montserrat',
+      fontFamily: "'Montserrat', sans-serif",
+    },
+    lato: {
+      name: 'Lato',
+      fontFamily: "'Lato', sans-serif",
+    },
+    opensans: {
+      name: 'Open Sans',
+      fontFamily: "'Open Sans', sans-serif",
+    },
+    bevietnampro: {
+      name: 'Be Vietnam Pro',
+      fontFamily: "'Be Vietnam Pro', sans-serif",
+    },
+  };
+
+  function extractParamsFromParentUrl() {
+    const [, paramsSuffix] = window.location.href.split('?');
+    if (!paramsSuffix) {
+      return undefined; // No params are present in the url
+    }
+    const paramStrings = paramsSuffix.split('&');
+    const params = {};
+    paramStrings.forEach((paramString) => {
+      const paramAndValue = paramString.split('=');
+      if (paramAndValue.length === 2) {
+        params[paramAndValue[0]] = paramAndValue[1];
+      }
+    });
+    return params;
+  }
+
+  // Validate entered font name against accepted list
+  function validateFontOverride(font, mappings = fontMappings) {
+    const acceptedFonts = Object.keys(mappings);
+
+    return acceptedFonts.indexOf(font.toLowerCase().replace(/\s+/g, '')) !== -1;
+  }
+
+  if (validateInputArgument(partnerSiteConfig)) {
+    //
+    // Step 2 of 4 - Construct the iFrame and mount it to the page
+    //
+    const themeName = sanitiseThemeName(partnerSiteConfig.themeName);
+    let borderStyleSettings;
+    if (themeName !== 'gowizard') {
+      if (isPantherFeatureInUse) {
+        borderStyleSettings =
+          partnerSiteConfig.borderEnabled ||
+          partnerSiteConfig.borderEnabled === undefined
+            ? 'box-shadow: rgba(45, 51, 80, 0.3) 1px 3px 10px 1px; border-radius: 6px; border-style: none;'
+            : 'border-radius: inherit; border-style: none;';
+      } else if (partnerSiteConfig.containerId) {
+        borderStyleSettings =
+          partnerSiteConfig.borderEnabled ||
+          partnerSiteConfig.borderEnabled === undefined
+            ? 'box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px; border-radius: 4px; border-style: none;'
+            : 'border-radius: inherit; border-style: none;';
+      } else {
+        borderStyleSettings =
+          partnerSiteConfig.borderEnabled ||
+          partnerSiteConfig.borderEnabled === undefined
+            ? 'box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px; border-radius: 4px; border-style: none;'
+            : 'border: none;';
+      }
+    } else {
+      borderStyleSettings =
+        partnerSiteConfig.borderEnabled ||
+        partnerSiteConfig.borderEnabled === undefined
+          ? 'border-radius: 13px; border-style: none;'
+          : 'border: none;';
+    }
+
+    const providedOrMinimumHeight =
+      partnerSiteConfig.height >= parseInt(minimumWidgetHeight, 10)
+        ? partnerSiteConfig.height
+        : parseInt(minimumWidgetHeight, 10);
+    const heightStyleSettings = partnerSiteConfig.height
+      ? `height: ${providedOrMinimumHeight}px;`
+      : 'height: 575px;';
+
+    const maxWidthStyleSettings = partnerSiteConfig.maxWidth
+      ? `max-width: ${partnerSiteConfig.maxWidth}px;`
+      : 'max-width: 800px;';
+
+    let uniqueId = produceUniqueIdString();
+    while (document.querySelector(`#${uniqueId}`)) {
+      uniqueId = produceUniqueIdString();
+    }
+
+    // If the eventTranslation layer is present add its functionality to the input provided event handlers.
+    if (window.chameleon && window.chameleon.mvfGtmTranslationLayer) {
+      partnerSiteConfig.eventHandlers =
+        window.chameleon.mvfGtmTranslationLayer.addTranslationLayer({
+          iFrameId: uniqueId,
+          widgetLabel: partnerSiteConfig.widgetLabel,
+          eventHandlers: partnerSiteConfig.eventHandlers,
+        });
+    }
+
+    const resizeDuration = isPantherFeatureInUse ? '500ms' : '110ms';
+    const variableHeightTransitionStyle = `transition: ${resizeDuration} ease height;`;
+    /* NOTE: In order to ensure a widget resize that is synchronised with the page transition,
+     *       keep the transition duration value of variableHeightTransitionStyle in sync with the app value
+     *       'transitionContainer.style.animationDuration' in the activateSynchronisedEnterAnimation function
+     *       in src/Components/Transition/transition.helpers.js. Refer to its comment at the top.
+     */
+    const initialIframeAttributes = {
+      id: uniqueId,
+      width: '100%',
+      style: `overflow: hidden; ${variableHeightTransitionStyle} min-width: 300px;${borderStyleSettings}${heightStyleSettings}${maxWidthStyleSettings}`,
+      loading:
+        'lazy' /*  Supported by EDGE 79+ & Chrome 77+, not supported on IE,
+                             Firefox or Safari (to be supported by Safari in future,
+                             see Safari Technology Preview)). Workaround is in place.
+                          */,
+      sandbox:
+        'allow-forms allow-modals allow-popups allow-scripts allow-top-navigation',
+      /* Used for security (supported by IE10+ and all other main browsers)
+         "If absolutely required, you can add permissions back one by one (inside
+         the sandbox="" attribute value) - see the sandbox reference entry
+         (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe#attr-sandbox)
+         for all the available options. One important note is that you should never
+         add both allow-scripts and allow-same-origin to your sandbox attribute -
+         in that case, the embedded content could bypass the Same-origin policy
+         that stops sites from executing scripts, and use JavaScript to turn off
+         sandboxing altogether."
+         Source: https://developer.mozilla.org/en-US/docs/Learn/HTML/Multimedia_and_embedding/Other_embedding_technologies
+      */
+      title: 'MVF GLOBAL WEBFORM EMBED',
+    };
+    window.__private__.variableHeightTransitionStyle =
+      variableHeightTransitionStyle;
+    formWidgetInfoObject.iFrameId = initialIframeAttributes.id;
+    if (window.__private__) {
+      window.__private__.paging[initialIframeAttributes.id] = {
+        currentPage: 1,
+        previousPage: undefined,
+      };
+    }
+
+    const iFrameSourceUrl = 'https://chameleon-frontend-a3.staging.mvfglobal.com/forms/9592/default/chameleon.html';
+    // const iFrameSourceUrl = getIframeSourceUrl(
+    //   partnerSiteConfig,
+    //   featureTestSettings,
+    //   featureFlagPath,
+    //   themeName,
+    //   formWidgetInfoObject.iFrameId
+    // );
+
+    const formIframe = document.createElement('iframe');
+    let parentContainerOfIframeWidget;
+    if (partnerSiteConfig.containerId) {
+      parentContainerOfIframeWidget = document.getElementById(
+        partnerSiteConfig.containerId
+      );
+
+      if (
+        parentContainerOfIframeWidget.style.height &&
+        parseInt(parentContainerOfIframeWidget.style.height, 10) <
+          parseInt(minimumWidgetHeight, 10)
+      ) {
+        parentContainerOfIframeWidget.style.height = minimumWidgetHeight;
+      }
+      parentContainerOfIframeWidget.style.overflow = 'hidden';
+
+      // Set the widget resize transition style to a smooth ease animation
+      parentContainerOfIframeWidget.style.transition = `${resizeDuration} ease height;`;
+      if (
+        parentContainerOfIframeWidget.style.transition !==
+        `${resizeDuration} ease height`
+      ) {
+        // NOTE: The transition style of the external div may not be directly settable/overwritable
+        const widgetResizeStyle =
+          document.createTextNode(`#${partnerSiteConfig.containerId} {
+          transition: ${resizeDuration} ease height;
+        }`);
+        const widgetResizeStyleSheet = document.createElement('style');
+        widgetResizeStyleSheet.setAttribute('type', 'text/css');
+        widgetResizeStyleSheet.appendChild(widgetResizeStyle);
+        if (document.getElementsByTagName('head')[0]) {
+          document
+            .getElementsByTagName('head')[0]
+            .appendChild(widgetResizeStyleSheet);
+        }
+      }
+    } else {
+      // Create a DOM wrapper element and mount it right above the passed in snippet script tag
+      parentContainerOfIframeWidget = document.createElement('div');
+      const horizontalCentering = ' margin: auto;';
+      let themeBackgroundColor;
+      if (themeName === 'custom') {
+        themeBackgroundColor = 'transparent';
+      } else if (themeName === 'gowizard') {
+        themeBackgroundColor = 'rgb(255, 255, 255)';
+      } else {
+        themeBackgroundColor = 'rgb(253, 253, 253)';
+      }
+
+      const parentContainerBackgroundColour =
+        partnerSiteConfig.paletteOverrides &&
+        partnerSiteConfig.paletteOverrides.widgetBackgroundColor
+          ? partnerSiteConfig.paletteOverrides.widgetBackgroundColor
+          : themeBackgroundColor;
+      const opacityAndBackgroundSettings = `opacity: 1; background: ${parentContainerBackgroundColour};`;
+      let parentBorderStyleSettings;
+      if (themeName !== 'gowizard') {
+        if (isPantherFeatureInUse) {
+          parentBorderStyleSettings =
+            partnerSiteConfig.borderEnabled ||
+            partnerSiteConfig.borderEnabled === undefined
+              ? 'border-radius: 6px; border-style: none;'
+              : 'border: none;';
+        } else {
+          parentBorderStyleSettings =
+            partnerSiteConfig.borderEnabled ||
+            partnerSiteConfig.borderEnabled === undefined
+              ? 'border-radius: 4px; border-style: none;'
+              : 'border: none;';
+        }
+      } else {
+        parentBorderStyleSettings =
+          partnerSiteConfig.borderEnabled ||
+          partnerSiteConfig.borderEnabled === undefined
+            ? 'box-shadow: rgba(170, 144, 211, 0.75) 0.75rem 0.75rem 0px; border-radius: 13px; border-style: none; border: 2px solid rgb(86, 33, 137); box-sizing: content-box; margin: auto; overflow: hidden;'
+            : 'border: none;';
+      }
+
+      parentContainerOfIframeWidget.setAttribute(
+        'style',
+        opacityAndBackgroundSettings +
+          heightStyleSettings +
+          maxWidthStyleSettings +
+          horizontalCentering +
+          parentBorderStyleSettings +
+          variableHeightTransitionStyle
+      );
+
+      const currentSnippetScriptElement = document.currentScript; // Not supported on IE (a small price to pay)
+      const parentNodeOfSnippetScript = currentSnippetScriptElement.parentNode;
+      parentNodeOfSnippetScript.insertBefore(
+        parentContainerOfIframeWidget,
+        currentSnippetScriptElement
+      );
+    }
+
+    if (partnerSiteConfig.betaDynamicHeight) {
+      if (partnerSiteConfig.betaAutoScroll) {
+        repositionWidgetWithAutoScroll(
+          formIframe,
+          parentContainerOfIframeWidget
+        );
+        // NOTE: The parentContainer needs to be explicitly passed in because it still is a separate div and not yet linked as an HTML parent to formIframe
+      }
+    }
+
+    const loadingBar = createAnimatedLoadingBar(
+      parentContainerOfIframeWidget,
+      extractColourFromTheme(partnerSiteConfig, isPantherFeatureInUse),
+      partnerSiteConfig,
+      isPantherFeatureInUse
+    );
+    formIframe.setAttribute('position', 'relative');
+    formIframe.setAttribute('z-index', '9998');
+
+    if (partnerSiteConfig.belowFold === false) {
+      formIframe.src = iFrameSourceUrl;
+    }
+    // Assigning the HTML attributes as a 2nd arg of createElement is not
+    // supported by IE. Hence, setAttribute() is used
+    Object.keys(initialIframeAttributes).forEach(function (attribute) {
+      const value = initialIframeAttributes[attribute];
+      formIframe.setAttribute(attribute, value);
+    });
+
+    const parentUrlParams = extractParamsFromParentUrl();
+    if (!window.chameleon) {
+      window.chameleon = {};
+    }
+    window.chameleon.shouldLogEventsToConsole =
+      parentUrlParams && parentUrlParams.eventLog === 'true';
+    const pageUrl = window.location.href;
+
+    const sendInitialMessagesToChameleon = () => {
+      // Send the partner page url, campaignId, widgetLabel, headerEnabled and paletteOverrides state down to Chameleon
+      formIframe.contentWindow.postMessage(`pageUrl:${pageUrl}`, '*');
+      if (partnerSiteConfig.campaignId) {
+        formIframe.contentWindow.postMessage(
+          `campaignId:${partnerSiteConfig.campaignId}`,
+          '*'
+        );
+      }
+
+      // Inform Chameleon about the widgetLabel
+      if (
+        Object.prototype.hasOwnProperty.call(partnerSiteConfig, 'widgetLabel')
+      ) {
+        formIframe.contentWindow.postMessage(
+          `widgetLabel:${partnerSiteConfig.widgetLabel}`,
+          '*'
+        );
+      }
+      // Inform Chameleon about the iFrameId of the widget (essential to help correlate future events to the right iFrame)
+      if (formWidgetInfoObject.iFrameId) {
+        formIframe.contentWindow.postMessage(
+          `iFrameId:${formWidgetInfoObject.iFrameId}`,
+          '*'
+        );
+      }
+      if (
+        Object.prototype.hasOwnProperty.call(partnerSiteConfig, 'useCidFromURL')
+      ) {
+        formIframe.contentWindow.postMessage(
+          `useCidFromURL:${partnerSiteConfig.useCidFromURL}`,
+          '*'
+        );
+      }
+      if (partnerSiteConfig.betaDynamicHeight) {
+        const defaultResizeDuration = isPantherFeatureInUse ? 500 : 110;
+        const numericWidgetResizeDuration =
+          window.__private__.variableHeightTransitionStyle.match(/\d+/); // get digits from animation
+        const widgetResizeDuration = numericWidgetResizeDuration
+          ? parseInt(numericWidgetResizeDuration[0], 10)
+          : defaultResizeDuration;
+
+        formIframe.contentWindow.postMessage(
+          `widgetResizeDuration:${widgetResizeDuration}`,
+          '*'
+        );
+        formIframe.contentWindow.postMessage(
+          `dynamicHeight:${partnerSiteConfig.betaDynamicHeight}`,
+          '*'
+        );
+        formIframe.contentWindow.postMessage(
+          `minimumWidgetHeight:${parseInt(minimumWidgetHeight, 10)}`,
+          '*'
+        );
+        if (isPantherFeatureInUse) {
+          formIframe.contentWindow.postMessage(
+            `maximumWidgetHeight:${parseInt(maximumWidgetHeight, 10)}`,
+            '*'
+          );
+        }
+        if (window.ResizeObserver) {
+          // Set up a dimensions listener on the iframe to notify the React app of any changes in width
+          new ResizeObserver(function () {
+            formIframe.contentWindow.postMessage(
+              'recalculateRequiredWidgetHeightDueToWidthChange',
+              '*'
+            );
+          }).observe(formIframe); // listens efficiently to widget dimension changes (width is what we're interested in)
+        } else {
+          // This workaround (for unsupported browsers) is not exactly a polyfill but it successfully detects
+          // widget width changes whenever they are caused by mobile screen orientation changes or by window resizing
+          // Expect this code to kick in for browsers excluded here: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver#browser_compatibility
+          let formIframeWidth = formIframe.clientWidth;
+          window.addEventListener('orientationchange', function () {
+            if (formIframe.clientWidth !== formIframeWidth) {
+              formIframeWidth = formIframe.clientWidth;
+              formIframe.contentWindow.postMessage(
+                'recalculateRequiredWidgetHeightDueToWidthChange',
+                '*'
+              );
+            }
+          });
+          window.addEventListener('resize', function () {
+            if (formIframe.clientWidth !== formIframeWidth) {
+              formIframeWidth = formIframe.clientWidth;
+              formIframe.contentWindow.postMessage(
+                'recalculateRequiredWidgetHeightDueToWidthChange',
+                '*'
+              );
+            }
+          });
+        }
+      }
+      // Inform Chameleon about testMode
+      if (Object.prototype.hasOwnProperty.call(partnerSiteConfig, 'testMode')) {
+        formIframe.contentWindow.postMessage(
+          `testMode:${partnerSiteConfig.testMode}`,
+          '*'
+        );
+      }
+      // Inform Chameleon about whether to show or hide the header
+      if (
+        Object.prototype.hasOwnProperty.call(partnerSiteConfig, 'headerEnabled')
+      ) {
+        formIframe.contentWindow.postMessage(
+          `headerEnabled:${partnerSiteConfig.headerEnabled}`,
+          '*'
+        );
+      }
+      // Inform Chameleon about the position of the consent statement
+      if (
+        Object.prototype.hasOwnProperty.call(
+          partnerSiteConfig,
+          'isConsentStatementAboveNavigation'
+        )
+      ) {
+        formIframe.contentWindow.postMessage(
+          `isConsentStatementAboveNavigation:${partnerSiteConfig.isConsentStatementAboveNavigation}`,
+          '*'
+        );
+      }
+      // Inform Chameleon about the optional betaAutoScroll value of the widget
+      if (
+        Object.prototype.hasOwnProperty.call(
+          partnerSiteConfig,
+          'betaAutoScroll'
+        )
+      ) {
+        formIframe.contentWindow.postMessage(
+          `autoScroll:${partnerSiteConfig.betaAutoScroll}`,
+          '*'
+        );
+      }
+      // Inform Chameleon about whether to override any palette values
+      if (
+        Object.prototype.hasOwnProperty.call(
+          partnerSiteConfig,
+          'paletteOverrides'
+        )
+      ) {
+        const paletteOverridesJSON = JSON.stringify(
+          partnerSiteConfig.paletteOverrides
+        );
+        formIframe.contentWindow.postMessage(
+          `paletteOverrides:${paletteOverridesJSON}`,
+          '*'
+        );
+      }
+      // Inform Chameleon about whether to override the default font
+      if (
+        Object.prototype.hasOwnProperty.call(
+          partnerSiteConfig,
+          'betaFontOverride'
+        )
+      ) {
+        const isFontValid = validateFontOverride(
+          partnerSiteConfig.betaFontOverride
+        );
+        if (isFontValid) {
+          const fontObject =
+            fontMappings[
+              partnerSiteConfig.betaFontOverride
+                .toLowerCase()
+                .replace(/\s+/g, '')
+            ];
+          const fontOverrideJSON = JSON.stringify(fontObject);
+          formIframe.contentWindow.postMessage(
+            `betaFontOverride:${fontOverrideJSON}`,
+            '*'
+          );
+        } else {
+          console.log(
+            'MVF Form Loader Error - invalid or unsupported font selected'
+          );
+        }
+      }
+      // Inform Chameleon not to expect further render-critical messages as part of the initial load
+      formIframe.contentWindow.postMessage(
+        'allInitialMessagesArrived:true',
+        '*'
+      );
+
+      if (partnerSiteConfig.eventHandlers) {
+        const registeredEventHandlers = Object.getOwnPropertyNames(
+          partnerSiteConfig.eventHandlers
+        );
+        formIframe.contentWindow.postMessage(
+          `registeredEventHandlers:${JSON.stringify(registeredEventHandlers)}`,
+          '*'
+        );
+      }
+    };
+
+    formIframe.onload = function () {
+      // formIframe.onload fires twice to keep the customer page's PageSpeed
+      // score high (see the 'SEO' comment in the onLoadHandlerFunction).
+      // As a result, a second condition needs to be checked before considering
+      // the form widget 'loaded'.
+      if (formIframe.src) {
+        // Remove the loading bar as soon as the form widget has appeared and fully loaded
+        parentContainerOfIframeWidget.removeChild(loadingBar);
+
+        /**
+         * Send input data to the app via browser message
+         *
+         * In the case of Apple browsers we cannot send this data until we receive a message from the application - which confirms that the app is ready.
+         */
+        if (!isIOS() && !isMacOS()) {
+          if (partnerSiteConfig.env === 'dev') {
+            setTimeout(() => {
+              // In development in linux the application does not load before the messages are sent, this is not currently an issues in staging / prod
+              console.log(
+                'DEV ONLY: ARTIFICIAL DELAY for application to be ready to receive messages'
+              );
+              sendInitialMessagesToChameleon();
+            }, 2000);
+          } else {
+            sendInitialMessagesToChameleon();
+          }
+        }
+
+        if (partnerSiteConfig.eventHandlers) {
+          if (partnerSiteConfig.eventHandlers.widgetVisible) {
+            addVisibilityWatcher(
+              partnerSiteConfig.eventHandlers.widgetVisible,
+              partnerSiteConfig.widgetLabel,
+              formIframe
+            );
+          }
+        }
+      }
+    };
+
+    // Insert the iFrame of the Chameleon form widget
+    parentContainerOfIframeWidget.appendChild(loadingBar);
+    parentContainerOfIframeWidget.appendChild(formIframe);
+
+    if (isPantherFeatureInUse) {
+      if (isIOS() && Array.isArray(window?.__private__?.autoZoom?.widgets)) {
+        window.__private__.autoZoom.widgets.push(formIframe);
+      }
+    }
+
+    //
+    // Step 3 of 4 - Set up event handlers (including form errors)
+    //
+
+    if (
+      window.partnerSiteConfigs &&
+      typeof window.partnerSiteConfigs === 'object' &&
+      !Array.isArray(window.partnerSiteConfigs)
+    ) {
+      // This formLoader script may run as part of a batch of invocations from
+      // multiple snippets to load multiple iFrames onto the page. Hence, when
+      // it comes to hooking up the eventListeners from any one snippet to the
+      // common global window object (and its onmessage trigger handler), each
+      // partnerSiteConfig that relates to an individual loader snippet needs to
+      // be collated into a map object that correlates iFrameId to partnerSiteConfig
+      // for the window object to be aware of and listen to in order to
+      // prevent messages from any iFrame from being ignored by the window or
+      // rather not getting passed through to the eventListeners of the
+      // partnerSiteConfig of that specific iFrame's loader snippet
+      window.partnerSiteConfigs[formWidgetInfoObject.iFrameId] =
+        partnerSiteConfig;
+    } else {
+      window.partnerSiteConfigs = {};
+      window.partnerSiteConfigs[formWidgetInfoObject.iFrameId] =
+        partnerSiteConfig;
+    }
+
+    // Handle form-related events by invoking partner's pre-specified callback logic
+    window.addEventListener('message', function (event) {
+      if (typeof event.data.startsWith === 'function') {
+        // Guard clause to prevent unrelated messages to trigger this logic (more efficient)
+        if (
+          event.data.startsWith('questionAnswered') ||
+          event.data.startsWith('pageChanged') ||
+          event.data.startsWith('finalSubmission') ||
+          event.data.startsWith('formSubmit') ||
+          event.data.startsWith('formError') ||
+          event.data.startsWith('failedForwardPageNavigation') ||
+          event.data.startsWith('resizeWidget') ||
+          event.data.startsWith('invokeAutoScroll') ||
+          event.data.startsWith('submissionStatusUpdated') ||
+          event.data.startsWith('initialWidgetInteraction') ||
+          event.data.startsWith('initialWidgetLoad') ||
+          event.data.startsWith('cookiesRequested')
+        ) {
+          const eventInfoArray = event.data.split(/:(.+)/); // splits the string on the first occurrence of the separator ':'
+          const eventType = eventInfoArray[0];
+          const eventInfoObject = JSON.parse(eventInfoArray[1]);
+          const iFrameIdOfEventOrigin = eventInfoObject.iFrameId;
+          const isSubmissionEvent =
+            event.data.startsWith('finalSubmission') ||
+            event.data.startsWith('formSubmit');
+
+          if (eventInfoObject.iFrameId !== formWidgetInfoObject.iFrameId) {
+            return;
+          }
+
+          if (event.data.startsWith('cookiesRequested')) {
+            // Inform Chameleon about OneTrust cookie and add handler for any cookie changes.
+            sendOneTrustCookieConsentData(formIframe);
+            if (window.OneTrust) {
+              window.OneTrust.OnConsentChanged(() =>
+                sendOneTrustCookieConsentData(formIframe)
+              );
+            }
+            return;
+          }
+
+          if (
+            event.data.startsWith('initialWidgetInteraction') &&
+            typeof window.chameleon?.setupBrowserIntercept === 'function'
+          ) {
+            window.chameleon.setupBrowserIntercept();
+          }
+
+          if (window.chameleon.shouldLogEventsToConsole) {
+            console.log('MVF EMBED EVENT INFO');
+            console.log('MVF EMBED EVENT Type: ', eventType);
+            console.log('MVF EMBED EVENT DETAILS: ', eventInfoObject);
+            console.log(
+              'MVF EMBED IFRAMEID OF EVENT ORIGIN: ',
+              iFrameIdOfEventOrigin
+            );
+          }
+          // Chameleon form-related user progress / error message listener to
+          // bubble either form-related user progress or interaction errors up
+          // to the partner-site by invoking their specified event response
+          // logic of their passed in callback function
+
+          const snippetSpecificConfig =
+            window.partnerSiteConfigs[iFrameIdOfEventOrigin];
+          // Any widget related event from any one iFrame gets communicated to
+          // its original loader snippet (that has the corresponding eventHandler
+          // function implemented). None of the other unrelated snippets will be
+          // notified in a multi-snippet / multi-iFrame page scenario.
+          if (
+            snippetSpecificConfig &&
+            snippetSpecificConfig.eventHandlers &&
+            snippetSpecificConfig.eventHandlers[eventType] &&
+            typeof snippetSpecificConfig.eventHandlers[eventType] ===
+              'function' &&
+            isSubmissionEvent === false
+          ) {
+            snippetSpecificConfig.eventHandlers[eventType](eventInfoObject);
+          }
+
+          // If it's a submission event, prioritise calling the formSubmit event handler if it exists
+          // If it doesn't, call the legacy finalSubmission event handler instead
+          if (
+            snippetSpecificConfig &&
+            snippetSpecificConfig.eventHandlers &&
+            isSubmissionEvent === true
+          ) {
+            if (
+              snippetSpecificConfig.eventHandlers.formSubmit &&
+              typeof snippetSpecificConfig.eventHandlers.formSubmit ===
+                'function'
+            ) {
+              snippetSpecificConfig.eventHandlers.formSubmit(eventInfoObject);
+            } else {
+              snippetSpecificConfig.eventHandlers.finalSubmission(
+                eventInfoObject
+              );
+            }
+          }
+
+          const iFrameElement = document.getElementById(iFrameIdOfEventOrigin);
+          const currentWidgetHeight = iFrameElement
+            ? window.getComputedStyle(iFrameElement, null).height
+            : '';
+          if (
+            event.data.startsWith('invokeAutoScroll') &&
+            snippetSpecificConfig &&
+            partnerSiteConfig.betaAutoScroll
+          ) {
+            repositionWidgetWithAutoScroll(iFrameElement, undefined, true);
+          }
+
+          if (isSubmissionEvent && window.__private__?.paging) {
+            window.__private__.paging[
+              iFrameIdOfEventOrigin
+            ].formSubmitted = true;
+          }
+
+          if (
+            event.data.startsWith('pageChanged') &&
+            window.__private__?.paging
+          ) {
+            const destinationPageMatchObject = event.data.match(
+              /["|']destinationPage["|']:(\d+),/
+            );
+            const fromPageMatchObject = event.data.match(
+              /["|']fromPage["|']:(\d+),/
+            );
+            if (
+              destinationPageMatchObject &&
+              Array.isArray(destinationPageMatchObject) &&
+              typeof parseInt(destinationPageMatchObject[1], 10) === 'number'
+            ) {
+              window.__private__.paging[iFrameIdOfEventOrigin].currentPage =
+                parseInt(destinationPageMatchObject[1], 10);
+            }
+            if (
+              fromPageMatchObject &&
+              Array.isArray(fromPageMatchObject) &&
+              typeof parseInt(fromPageMatchObject[1], 10) === 'number'
+            ) {
+              window.__private__.paging[iFrameIdOfEventOrigin].previousPage =
+                parseInt(fromPageMatchObject[1], 10);
+            }
+          }
+          // Dynamic iframe height based on incoming requiredWidgetHeight data on every "resizeWidget" event
+          if (isPantherFeatureInUse) {
+            if (
+              iFrameIdOfEventOrigin &&
+              snippetSpecificConfig.betaDynamicHeight &&
+              event.data.startsWith('resizeWidget')
+            ) {
+              let newWidgetHeight = eventInfoObject.requiredWidgetHeight;
+
+              if (
+                parseInt(newWidgetHeight, 10) <
+                parseInt(minimumWidgetHeight, 10)
+              ) {
+                newWidgetHeight = minimumWidgetHeight;
+              }
+
+              if (
+                parseInt(newWidgetHeight, 10) >
+                parseInt(maximumWidgetHeight, 10)
+              ) {
+                newWidgetHeight = maximumWidgetHeight;
+              }
+
+              if (newWidgetHeight !== currentWidgetHeight) {
+                iFrameElement.style.height = newWidgetHeight;
+                const parentContainer = iFrameElement.parentNode;
+                parentContainer.style.height = newWidgetHeight;
+              }
+            }
+          } else if (
+            iFrameIdOfEventOrigin &&
+            snippetSpecificConfig.betaDynamicHeight &&
+            event.data.startsWith('resizeWidget') &&
+            /**
+             * We want height to change after the first page or if you have navigated back to the first page
+             */
+            (window.__private__?.paging[iFrameIdOfEventOrigin]?.currentPage >
+              1 ||
+              window.__private__.paging[iFrameIdOfEventOrigin].previousPage !==
+                undefined)
+          ) {
+            const newWidgetHeight =
+              eventInfoObject.requiredWidgetHeight &&
+              parseInt(eventInfoObject.requiredWidgetHeight, 10) >
+                parseInt(minimumWidgetHeight, 10)
+                ? eventInfoObject.requiredWidgetHeight
+                : minimumWidgetHeight;
+            if (newWidgetHeight !== currentWidgetHeight) {
+              iFrameElement.style.height = newWidgetHeight;
+              const parentContainer = iFrameElement.parentNode;
+              parentContainer.style.height = newWidgetHeight;
+            }
+          }
+        }
+
+        /**
+         * Chameleon will send a browserMessagesRegistered event when it's ready to receive browser messages, as we noticed issues with iOS onload event firing before Chameleon was ready, so we replay the initial messages when we receive this event to ensure Chameleon has all the required data
+         */
+        if (event.data.startsWith('browserMessagesRegistered')) {
+          if (isIOS() || isMacOS()) {
+            sendInitialMessagesToChameleon();
+
+            // TODO not sure about this - is updateCampaignId still present
+            if (formWidgetInfoObject.campaignIdOverride) {
+              /**
+               * If we have previously received an updateCampaignId event that was not buffered, then sendInitialMessagesToChameleon would overwrite the campaign ID to be the one in this snippet and the one in the snippet would be resent
+               */
+              formWidgetInfoObject.updateCampaignId(
+                formWidgetInfoObject.campaignIdOverride
+              );
+            }
+          }
+
+          formWidgetInfoObject.mvfFormWidgetLoaded = true;
+          // Incoming commands will no longer need buffering after this
+          formWidgetInfoObject.__private__.commandBuffer.forEach(function (
+            commandAndArgs
+          ) {
+            if (commandAndArgs.function) {
+              commandAndArgs.function(...commandAndArgs.arguments);
+              // Executing all previously buffered commands that have come in
+            }
+          });
+          // Clear commandBuffer after all commands were executed
+          formWidgetInfoObject.__private__.commandBuffer = [];
+        }
+      }
+    });
+
+    const onLoadHandlerFunction = function () {
+      if (partnerSiteConfig.belowFold !== false) {
+        formIframe.src = iFrameSourceUrl;
+        /*
+          Reasoning for delaying source url assignment:
+          In order to improve page speed, it's a good idea to set the iframe's
+          src attribute with JavaScript after the main content is done with
+          loading. This makes your page usable sooner and decreases your official
+          page load time (an important SEO metric.)
+          Source: https://developer.mozilla.org/en-US/docs/Learn/HTML/Multimedia_and_embedding/Other_embedding_technologies
+          This works for all browsers and works around the native lazy loading
+          incompatibility of some browsers (Safari, Firefox & IE). See here for
+          implementation suggestions: https://webmasters.stackexchange.com/questions/39511/when-is-a-page-considered-loaded-by-search-engines-so-i-can-enhance-it-without-a
+        */
+      }
+    };
+
+    if (
+      window.functionsToRunOnLoad &&
+      Array.isArray(window.functionsToRunOnLoad)
+    ) {
+      // This formLoader script may run as part of a batch of invocations from
+      // multiple snippets to load multiple iFrames onto the page. Hence, the
+      // event handlers that apply to the common global window object need to be
+      // collated into an array to prevent overrides that impact all other iFrames
+      window.functionsToRunOnLoad.push(onLoadHandlerFunction);
+    } else {
+      window.functionsToRunOnLoad = [onLoadHandlerFunction];
+    }
+
+    let pollingId = setInterval(() => {
+      const navData = window.performance.getEntriesByType('navigation');
+      let windowLoadEventHasFired =
+        navData.length > 0 && navData[0].loadEventEnd > 0;
+
+      if (windowLoadEventHasFired === false && navData.length === 0) {
+        // ios 13/14 fix for performance API inconsistencies:
+        // https://stackoverflow.com/questions/61731563/performace-api-not-supported-in-safari-browser
+        // https://bugs.webkit.org/show_bug.cgi?id=184363
+        if (
+          typeof window.performance.timing !== 'undefined' &&
+          typeof window.performance.timing.loadEventEnd !== 'undefined'
+        ) {
+          windowLoadEventHasFired = window.performance.timing.loadEventEnd > 0;
+        }
+      }
+
+      if (windowLoadEventHasFired) {
+        // page is fully loaded from an SEO perspective
+        clearInterval(pollingId); // Prevent this code from running more than once
+        pollingId = null; // Release pollingId from the variable
+        window.functionsToRunOnLoad.forEach(function (onLoadHandlerFunction) {
+          // Each function corresponds to a different iFrame
+          onLoadHandlerFunction();
+        });
+      }
+    }, 10);
+
+    // Assign a handler function to the infoObject allowing external customer
+    // code to send key-value pairs of session data into the formWidget
+    formWidgetInfoObject.sendSessionDataToMvfFormWidget = function (
+      externalSessionData
+    ) {
+      if (this.mvfFormWidgetLoaded) {
+        if (
+          !externalSessionData ||
+          typeof externalSessionData !== 'object' ||
+          Array.isArray(externalSessionData)
+        ) {
+          // Invalid input data - Wrong data type
+          console.log(
+            `MVF Form Loader Error - Invalid or missing input argument\n${externalSessionData}\n. Please pass in a JS object to the 'formWidgetInfoObject.sendSessionDataToMvfFormWidget()' function call or contact your MVF support team, alternatively.`
+          );
+          formWidgetInfoObject.loadingErrors.push(
+            `MVF Form Loader Error - Invalid or missing input argument\n${externalSessionData}\n. Please pass in a JS object to the 'formWidgetInfoObject.sendSessionDataToMvfFormWidget()' function call or contact your MVF support team, alternatively.`
+          );
+        } else if (Object.keys(externalSessionData).length === 0) {
+          // Invalid input data - No key-value pairs
+          console.log(
+            `MVF Form Loader Error - Invalid input argument\n${JSON.stringify(
+              externalSessionData
+            )}\n. Please pass in a JS object with at least one key-value pair data item to the 'formWidgetInfoObject.sendSessionDataToMvfFormWidget()' function call or contact your MVF support team, alternatively.`
+          );
+          formWidgetInfoObject.loadingErrors.push(
+            `MVF Form Loader Error - Invalid input argument\n${externalSessionData}\n. Please pass in a JS object with at least one key-value pair data item to the 'formWidgetInfoObject.sendSessionDataToMvfFormWidget()' function call or contact your MVF support team, alternatively.`
+          );
+        } else {
+          // Valid input data
+          // Send the dynamically passed in externalSessionData down to Chameleon
+          formIframe.contentWindow.postMessage(
+            `externalSessionData:${JSON.stringify(externalSessionData)}`,
+            '*'
+          );
+        }
+      } else if (
+        this.__private__.commandBuffer &&
+        Array.isArray(this.__private__.commandBuffer)
+      ) {
+        this.__private__.commandBuffer.push({
+          function: this.sendSessionDataToMvfFormWidget,
+          arguments: [externalSessionData],
+        });
+      } else {
+        this.__private__.commandBuffer = [
+          {
+            function: this.sendSessionDataToMvfFormWidget,
+            arguments: [externalSessionData],
+          },
+        ];
+      }
+    }.bind(formWidgetInfoObject);
+
+    /**
+     * TODO: remove the use of updateCampaignId in pinnacle, then remove the function here, to prevent errors in pinnacle.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    formWidgetInfoObject.updateCampaignId = () => {};
+
+    // Assign a handler function to the infoObject allowing external customer code to resubmit
+    formWidgetInfoObject.resubmitMvfFormWidget = function ({
+      replaceAncestorSid = false,
+    } = {}) {
+      const data = {
+        shouldResubmit: true,
+        replaceAncestorSid,
+      };
+      formIframe.contentWindow.postMessage(
+        `resubmit:${JSON.stringify(data)}`,
+        '*'
+      );
+    };
+
+    //
+    // Step 4 of 4 - Return iFrame infoObject
+    //
+    return formWidgetInfoObject;
+  }
+  return formWidgetInfoObject;
+}

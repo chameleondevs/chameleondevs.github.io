@@ -18,6 +18,22 @@
  * https://www.w3schools.com/js/js_es5.asp
  */
 
+// FEATURES
+const APP_FEATURES = [];
+const FORM_LOADER_ONLY_FEATURES = ['isr'];
+
+// HEIGHT
+const MINIMUM_HEIGHT = 450;
+const MAXIMUM_HEIGHT = 950;
+const DEFAULT_HEIGHT = 575;
+
+// INPUT PARAMTERS
+const DEPRECATED_PARAMETER_MAP = {
+  formIdentifier: 'formId',
+  betaDynamicHeight: 'dynamicHeight',
+  betaAutoScroll: 'autoScroll',
+};
+
 /**
  * Polyfill support for old browser String startsWith method such as ios13/ios14
  * required by https://github.com/google/closure-compiler/wiki/Supported-features#:~:text=String.prototype.startsWith
@@ -85,6 +101,33 @@ function runFormWidgetLoader(partnerSiteConfig) {
   }
 
   /**
+   * updatePartnerSiteConfigFields
+   * Updates deprecated field names in the partnerSiteConfig object for backward compatibility.
+   * Copies values from deprecated fields to their preferred counterparts.
+   * @param {Object} partnerSiteConfig - The configuration object for the partner site.
+   * @returns {void}
+   */
+  function updatePartnerSiteConfigFields(partnerSiteConfig) {
+    Object.keys(DEPRECATED_PARAMETER_MAP).forEach((deprecatedFieldName) => {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          partnerSiteConfig,
+          deprecatedFieldName
+        )
+      ) {
+        const newFieldName = DEPRECATED_PARAMETER_MAP[deprecatedFieldName];
+        console.warn(
+          `WARNING: The field name '${deprecatedFieldName}' is now '${newFieldName}'. Your form should still work but please update this value.`
+        );
+        partnerSiteConfig[newFieldName] =
+          partnerSiteConfig[deprecatedFieldName];
+        // NOTE: In the logic of the validateInputArgument() function, any bad input data that users have assigned to a deprecated field name
+        //       will get flagged as bad input data to the new field. Be prepared to explain this when facing a support issue.
+      }
+    });
+  }
+
+  /**
    * inferDomainFromScriptSourceUrl
    * This function obtains its own script source URL in order to examine which
    * domain it contains ('eu' or 'ca'). If the URL is inconclusive or
@@ -92,7 +135,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
    */
   function inferDomainFromScriptSourceUrl() {
     const allScripts = document.getElementsByTagName('script');
-    let domainFromSourceUrl = 'eu';
+    let domainFromSourceUrl = 'eu'; // default
     for (let i = 0; i < allScripts.length; i++) {
       if (
         allScripts[i].src &&
@@ -126,23 +169,54 @@ function runFormWidgetLoader(partnerSiteConfig) {
   }
 
   /**
+   * This function produces a unique HTML ID string by combining two nearly unique
+   * numbers together - context: partners want to have the ability to embed
+   * multiple iframes of Chameleon on to the web page by invoking this formLoader
+   * script multiple times from many snippets (which may or may not be a
+   * parallelised operation).
+   */
+  function produceUniqueIdString() {
+    const uniquifierSuffix = `${Date.now()}-${Math.random()}`.replace('.', '');
+    // Math.random() creates a floating-point, pseudo-random number between 0 (inclusive) and 1 (exclusive) The chance of it producing the same number across multiple invocations is slim but not impossible
+    // Date.now() returns the number of milliseconds elapsed since UNIX EPOCH (January 1, 1970). If two invocations of this script have been parallelised by the partner site, this could return an identical number
+    return `mvfFormWidget-${uniquifierSuffix}`.slice(0, 40);
+  }
+
+  function getUniqueId() {
+    let uniqueId = produceUniqueIdString();
+    while (document.querySelector(`#${uniqueId}`)) {
+      uniqueId = produceUniqueIdString();
+    }
+    return uniqueId;
+  }
+
+  /**
    * sanitiseEnvironmentAndDomain
-   * Normaliser function which returns the passed in env if it is 'staging'
-   * If it is not, the env gets defaulted to 'prod' and the second argument gets
-   * examined. Depending on the passed in domain, either 'eu' or 'ca' get returned.
+   * Normaliser function which returns the passed in env if it is a valid 'staging variant' (see circle ci config for options), or defaults to staging.
+   * If the env does not contain staging, the default of 'prod' takes place, which is to examine the domain and return either 'eu' or 'ca'.
+   * If no domain is provided, the default is 'eu'.
    * @param {string} env - The provided environment string (defaults to prod)
    * @param {string} domain - The provided domain string (defaults to the domain
    *                          that is present in the script source URL)
    */
   function sanitiseEnvironmentAndDomain(env, domain) {
-    env = env === 'staging' ? 'staging' : 'prod';
-    const domainHasBeenProvided = domain === 'ca' || domain === 'eu';
-    if (domainHasBeenProvided) {
-      domain = domain === 'ca' ? 'ca' : 'eu';
-    } else {
-      domain = inferDomainFromScriptSourceUrl();
+    // STAGING
+    if (env && env.indexOf('staging') > -1) {
+      const isKnownStagingEnv =
+        /a[1-3]\.staging/.exec(env) || /[a-g]1\.staging/.exec(env);
+
+      if (isKnownStagingEnv) {
+        return env;
+      }
+      return 'staging'; // if staging, but unknown variant
     }
-    return env === 'staging' ? env : domain;
+
+    // PROD
+    if (domain === 'ca' || domain === 'eu') {
+      return domain; // default prod domain
+    }
+
+    return inferDomainFromScriptSourceUrl(); // default of 'eu'
   }
 
   getCookieValue = function (name) {
@@ -190,14 +264,17 @@ function runFormWidgetLoader(partnerSiteConfig) {
     ) {
       return testSettings;
     }
-    const FORMLOADER_ONLY_FEATURES = ['panther'];
     testSettings.appFeatures = [];
     testSettings.formLoaderFeatures = [];
     for (const feature of testSettings.features) {
-      if (FORMLOADER_ONLY_FEATURES.includes(feature)) {
+      if (FORM_LOADER_ONLY_FEATURES.includes(feature)) {
         testSettings.formLoaderFeatures.push(feature);
-      } else {
+      } else if (APP_FEATURES.includes(feature)) {
         testSettings.appFeatures.push(feature);
+      } else {
+        console.warn(
+          `Feature ${feature} is not supported. Please contact your MVF support team if you cannot resolve this issue.`
+        );
       }
     }
     return testSettings;
@@ -228,6 +305,78 @@ function runFormWidgetLoader(partnerSiteConfig) {
     features.sort();
 
     return features.join('.');
+  }
+
+  function produceUuidv4() {
+    return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) =>
+      (
+        c ^
+        (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))
+      ).toString(16)
+    );
+  }
+
+  function getIframeErrorSourceUrl(partnerSiteConfig) {
+    if (partnerSiteConfig.env === 'dev') {
+      return 'http://chameleon.localhost:2000/formLoaderError';
+    }
+
+    const envAndDomain = sanitiseEnvironmentAndDomain(
+      partnerSiteConfig.env,
+      partnerSiteConfig.domain
+    );
+
+    return `https://chameleon-frontend-${envAndDomain}.mvfglobal.com/formLoaderError.html`;
+  }
+
+  /**
+   * Display an error page with minimal dependencies on the partner site config
+   * We cannot trust the partnerSiteConfig to be valid, so ensure fallbacks exist
+   */
+  function displayErrorPage(partnerSiteConfig, message) {
+    const uniqueId = getUniqueId();
+
+    const initialIframeAttributes = {
+      id: uniqueId,
+      width: '100%',
+      style: `overflow: hidden; border: 0; transition: 110ms ease height; min-width: 300px; height: 250px; max-width: 800px;`,
+      loading: 'lazy',
+      sandbox:
+        'allow-forms allow-modals allow-popups allow-scripts allow-top-navigation',
+      title: 'MVF GLOBAL WEBFORM EMBED',
+    };
+
+    const iFrameErrorSourceUrl = getIframeErrorSourceUrl(partnerSiteConfig);
+    const formIframe = document.createElement('iframe');
+
+    let parentContainerOfIframeWidget = document.createElement('div');
+    if (partnerSiteConfig.containerId) {
+      const container = document.getElementById(partnerSiteConfig.containerId);
+
+      if (container) {
+        parentContainerOfIframeWidget = container;
+      }
+    }
+
+    const currentSnippetScriptElement = document.currentScript; // Not supported on IE (a small price to pay)
+    const parentNodeOfSnippetScript = currentSnippetScriptElement.parentNode;
+    parentNodeOfSnippetScript.insertBefore(
+      parentContainerOfIframeWidget,
+      currentSnippetScriptElement
+    );
+
+    const supportId = produceUuidv4();
+    const queryString = `?supportId=${supportId}&message=${encodeURIComponent(
+      message
+    )}`;
+
+    formIframe.src = iFrameErrorSourceUrl + queryString;
+    parentContainerOfIframeWidget.appendChild(formIframe);
+
+    Object.keys(initialIframeAttributes).forEach(function (attribute) {
+      const value = initialIframeAttributes[attribute];
+      formIframe.setAttribute(attribute, value);
+    });
   }
 
   /**
@@ -273,6 +422,10 @@ function runFormWidgetLoader(partnerSiteConfig) {
       };
       window.addEventListener('scroll', onScrollCallback);
     }
+  }
+
+  function boundedHeight(height) {
+    return Math.min(Math.max(height, MINIMUM_HEIGHT), MAXIMUM_HEIGHT);
   }
 
   /**
@@ -369,9 +522,10 @@ function runFormWidgetLoader(partnerSiteConfig) {
     // If any settings are incorrect then the form will be based solely on inputValues.
     let formId;
     let featureString = '';
+    const isISR = isFeatureEnabled('isr', testSettings?.formLoaderFeatures);
 
-    if (isFeatureEnabled('panther', testSettings?.formLoaderFeatures)) {
-      featureString = 'panther-';
+    if (isISR) {
+      featureString = 'isr-';
     }
     if (!!testSettings && testSettings.formLoaderFeatures) {
       delete testSettings.formLoaderFeatures;
@@ -393,174 +547,9 @@ function runFormWidgetLoader(partnerSiteConfig) {
       partnerSiteConfig.domain
     );
 
-    return `https://chameleon-frontend-${featureString}${envAndDomain}.mvfglobal.com/forms/${formId}/${featureFlagPath}/${themeName}.html#iFrameId=${iFrameId}`;
-  }
-
-  /**
-   * This function produces a unique HTML ID string by combining two nearly unique
-   * numbers together - context: partners want to have the ability to embed
-   * multiple iframes of Chameleon on to the web page by invoking this formLoader
-   * script multiple times from many snippets (which may or may not be a
-   * parallelised operation).
-   */
-  function produceUniqueIdString() {
-    const uniquifierSuffix = `${Date.now()}-${Math.random()}`.replace('.', '');
-    // Math.random() creates a floating-point, pseudo-random number between 0 (inclusive) and 1 (exclusive) The chance of it producing the same number across multiple invocations is slim but not impossible
-    // Date.now() returns the number of milliseconds elapsed since UNIX EPOCH (January 1, 1970). If two invocations of this script have been parallelised by the partner site, this could return an identical number
-    return `mvfFormWidget-${uniquifierSuffix}`.slice(0, 40);
-  }
-
-  // =================================================================================================================== //
-  // MUI HelperFunctions providing behavioural parity with Material UI for the loading bar                               //
-  // Source: mvf-external-components/node_modules/@material-ui/core/LinearProgress/LinearProgress.js, getColor function  //
-  // =================================================================================================================== //
-
-  /**
-   * Converts a color from CSS hex format to CSS rgb format.
-   *
-   * @param {string} color - Hex color, i.e. #nnn or #nnnnnn
-   * @returns {string} A CSS rgb color string
-   */
-
-  function hexToRgbAsPerMui(color) {
-    color = color.substr(1);
-    const re = new RegExp('.{1,'.concat(color.length >= 6 ? 2 : 1, '}'), 'g');
-    let colors = color.match(re);
-
-    if (colors && colors[0].length === 1) {
-      colors = colors.map((n) => {
-        return n + n;
-      });
-    }
-
-    return colors
-      ? 'rgb'.concat(colors.length === 4 ? 'a' : '', '(').concat(
-          colors
-            .map((n, index) => {
-              return index < 3
-                ? parseInt(n, 16)
-                : Math.round((parseInt(n, 16) / 255) * 1000) / 1000;
-            })
-            .join(', '),
-          ')'
-        )
-      : '';
-  }
-
-  /**
-   * Returns an object with the type and values of a color.
-   *
-   * Note: Does not support rgb % values.
-   *
-   * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
-   * @returns {object} - A MUI color object: {type: string, values: number[]}
-   */
-  function decomposeColorAsPerMui(color) {
-    // Idempotent
-    if (color.type) {
-      return color;
-    }
-    if (color.charAt(0) === '#') {
-      return decomposeColorAsPerMui(hexToRgbAsPerMui(color));
-    }
-    const marker = color.indexOf('(');
-    const type = color.substring(0, marker);
-
-    let values = color.substring(marker + 1, color.length - 1).split(',');
-    values = values.map((value) => {
-      return parseFloat(value);
-    });
-    return {
-      type,
-      values,
-    };
-  }
-
-  /**
-   * Returns a number whose value is limited to the given range.
-   *
-   * @param {number} value The value to be clamped
-   * @param {number} min The lower boundary of the output range
-   * @param {number} max The upper boundary of the output range
-   * @returns {number} A number in the range [min, max]
-   */
-  function clampAsPerMui(value) {
-    const min =
-      arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
-    const max =
-      arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 1;
-
-    return Math.min(Math.max(min, value), max);
-  }
-
-  /**
-   * Converts a color object with type and values to a string.
-   *
-   * @param {object} color - Decomposed color
-   * @param {string} color.type - One of: 'rgb', 'rgba', 'hsl', 'hsla'
-   * @param {array} color.values - [n,n,n] or [n,n,n,n]
-   * @returns {string} A CSS color string
-   */
-
-  function recomposeColorAsPerMui(color) {
-    const { type } = color;
-    let { values } = color;
-
-    if (type.indexOf('rgb') !== -1) {
-      // Only convert the first 3 values to int (i.e. not alpha)
-      values = values.map((n, i) => {
-        return i < 3 ? parseInt(n, 10) : n;
-      });
-    } else if (type.indexOf('hsl') !== -1) {
-      values[1] = ''.concat(values[1], '%');
-      values[2] = ''.concat(values[2], '%');
-    }
-
-    return ''.concat(type, '(').concat(values.join(', '), ')');
-  }
-
-  /**
-   * Darkens a color.
-   *
-   * @param {string} color - CSS color, i.e. one of: #nnn, #nnnnnn, rgb(), rgba(), hsl(), hsla()
-   * @param {number} coefficient - multiplier in the range 0 - 1
-   * @returns {string} A CSS color string. Hex input values are returned as rgb
-   */
-
-  function lightenAsPerMui(color, coefficient) {
-    color = decomposeColorAsPerMui(color);
-    coefficient = clampAsPerMui(coefficient);
-
-    if (color.type.indexOf('hsl') !== -1) {
-      color.values[2] += (100 - color.values[2]) * coefficient;
-    } else if (color.type.indexOf('rgb') !== -1) {
-      for (let i = 0; i < 3; i += 1) {
-        color.values[i] += (255 - color.values[i]) * coefficient;
-      }
-    }
-
-    return recomposeColorAsPerMui(color);
-  }
-
-  // ================================================================================================================ //
-  // END OF MUI HelperFunctions providing behavioural parity with Material UI for the loading bar                     //
-  // ================================================================================================================ //
-
-  /**
-   * This function makes use of Material UI's helper functions in order to infer
-   * the lightened color shade for the loading bar that is implemented from scratch
-   * in this script using only CSS.
-   */
-  function inferSecondaryColourFromMUIHelperFunctions(
-    colorString,
-    isPantherFeatureInUse
-  ) {
-    if (isPantherFeatureInUse) {
-      // TODO: Once panther work has been merged secondary color will always be rgb(247,247, 247). We can then
-      // simplify by removing this function and hard coding the color into the createAnimatedLoadingBar function.
-      return 'rgb(247,247, 247)';
-    }
-    return lightenAsPerMui(colorString, 0.62);
+    return `https://chameleon-frontend-${featureString}${envAndDomain}.mvfglobal.com/forms/${formId}/${featureFlagPath}/${themeName}${
+      isISR ? '' : '.html'
+    }#iFrameId=${iFrameId}`;
   }
 
   /**
@@ -569,7 +558,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
    * in the mvf-external-components repo code for each theme and need to be in part
    * calculated via Material UI's helper functions.
    */
-  function extractColourFromTheme(partnerSiteConfig, isPantherFeatureInUse) {
+  function extractColourFromTheme(partnerSiteConfig) {
     // NOTE: Any changes to the colour values in the themes (defined in the External components repo) will need
     //       to be reapplied here and are not inferred programmatically. This keeps the loading bar fast to render.
     //       Please keep the rgb values or hex codes in here aligned to the value set specifically in the `primary.main`
@@ -582,7 +571,6 @@ function runFormWidgetLoader(partnerSiteConfig) {
 
     let customThemePrimaryColour = 'rgb(134, 134, 134)'; // Depends on the palette overrides input
     if (
-      isPantherFeatureInUse &&
       partnerSiteConfig.paletteOverrides &&
       partnerSiteConfig.paletteOverrides.progressBarFilledColor
     ) {
@@ -602,48 +590,32 @@ function runFormWidgetLoader(partnerSiteConfig) {
     const atlanticThemePrimaryColour = 'rgb(18, 189, 156)'; // Depends on theme colour value in the External components repo
     const gowizardThemePrimaryColour = 'rgb(85, 191, 229)'; // Depends on theme colour value in the External components repo
 
+    const secondaryColour = 'rgb(247,247, 247)';
+
     const themeNameBarColoursMap = {
       custom: {
         primaryColour: customThemePrimaryColour,
-        secondaryColour: inferSecondaryColourFromMUIHelperFunctions(
-          customThemePrimaryColour,
-          isPantherFeatureInUse
-        ),
+        secondaryColour,
       }, // ExpertMarket theme
       chameleon: {
         primaryColour: chameleonThemePrimaryColour,
-        secondaryColour: inferSecondaryColourFromMUIHelperFunctions(
-          chameleonThemePrimaryColour,
-          isPantherFeatureInUse
-        ),
+        secondaryColour,
       },
       indigo: {
         primaryColour: indigoThemePrimaryColour,
-        secondaryColour: inferSecondaryColourFromMUIHelperFunctions(
-          indigoThemePrimaryColour,
-          isPantherFeatureInUse
-        ),
+        secondaryColour,
       },
       rhubarb: {
         primaryColour: rhubarbThemePrimaryColour,
-        secondaryColour: inferSecondaryColourFromMUIHelperFunctions(
-          rhubarbThemePrimaryColour,
-          isPantherFeatureInUse
-        ),
+        secondaryColour,
       },
       atlantic: {
         primaryColour: atlanticThemePrimaryColour,
-        secondaryColour: inferSecondaryColourFromMUIHelperFunctions(
-          atlanticThemePrimaryColour,
-          isPantherFeatureInUse
-        ),
+        secondaryColour,
       },
       gowizard: {
         primaryColour: gowizardThemePrimaryColour,
-        secondaryColour: inferSecondaryColourFromMUIHelperFunctions(
-          gowizardThemePrimaryColour,
-          isPantherFeatureInUse
-        ),
+        secondaryColour,
       },
     };
 
@@ -659,12 +631,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
    * remote JS/React/Material UI component due to significant latency savings.
    * It is much faster and more light weight to render CSS.
    */
-  function createAnimatedLoadingBar(
-    formWidget,
-    colours,
-    partnerSiteConfig,
-    isPantherFeatureInUse
-  ) {
+  function createAnimatedLoadingBar(formWidget, colours, partnerSiteConfig) {
     const formWidgetWidth = formWidget.clientWidth;
     const formWidgetHeight = formWidget.clientHeight;
     const loadingBar = document.createElement('div');
@@ -715,14 +682,10 @@ function runFormWidgetLoader(partnerSiteConfig) {
     line.setAttribute('class', lineClass);
     increasingSubline.setAttribute('class', `${sublineClass} ${incClass}`);
     decreasingSubline.setAttribute('class', `${sublineClass} ${decClass}`);
-
     const cssAnimation = document.createElement('style');
     cssAnimation.setAttribute('type', 'text/css');
+    const loaderHeight = 25;
 
-    let loaderHeight = 20;
-    if (isPantherFeatureInUse) {
-      loaderHeight = 25;
-    }
     const rules = document.createTextNode(
       `.${sliderClass} {\n` +
         `box-sizing: border-box; position: relative; width:${formWidgetWidth}px; height:${loaderHeight}px; overflow-x: hidden\n}\n` +
@@ -734,7 +697,6 @@ function runFormWidgetLoader(partnerSiteConfig) {
     );
     cssAnimation.appendChild(rules);
     document.getElementsByTagName('head')[0].appendChild(cssAnimation);
-
     slider.appendChild(line);
     slider.appendChild(increasingSubline);
     slider.appendChild(decreasingSubline);
@@ -761,13 +723,8 @@ function runFormWidgetLoader(partnerSiteConfig) {
   const featureTestSettings = partitionFeatures(window.chameleonTestSettings);
   const featureFlagPath = getFeatureFlagPath(window.chameleonTestSettings);
 
-  const isPantherFeatureInUse = isFeatureEnabled(
-    'panther',
-    featureTestSettings?.formLoaderFeatures
-  );
-
   // These paging variables will ensure that the repositioning logic encapsulated within
-  // the betaAutoScroll feature only kicks in where it doesn't worsen page speed insights
+  // the autoScroll feature only kicks in where it doesn't worsen page speed insights
   if (!window.__private__) {
     window.__private__ = {
       paging: {},
@@ -777,127 +734,124 @@ function runFormWidgetLoader(partnerSiteConfig) {
     window.__private__.paging = {};
   }
 
-  if (isPantherFeatureInUse) {
-    if (window.__private__.autoZoom === undefined) {
-      window.__private__.autoZoom = { isSetupComplete: false };
-    }
+  if (window.__private__.autoZoom === undefined) {
+    window.__private__.autoZoom = { isSetupComplete: false };
   }
 
-  const minimumWidgetHeight = isPantherFeatureInUse ? '450px' : '400px';
+  const minimumWidgetHeight = partnerSiteConfig.height
+    ? `${boundedHeight(partnerSiteConfig.height)}px`
+    : `${MINIMUM_HEIGHT}px`;
   const maximumWidgetHeight = '950px';
   // This minimum height value will be enforced as the hard limit when partners
-  // enable the 'betaDynamicHeight' feature by passing a value of true into this optional
+  // enable the 'dynamicHeight' feature by passing a value of true into this optional
   // input config.
-  // NOTE: If this value changes, also update it in Chameleon (helpers/autoScroll.js),
-  //       alternatively, send it in via browserMessages and keep/accesss it in state.
+  // NOTE: If this value changes, also update it in Chameleon (helpers/autoScroll.js), alternatively, send it in via browserMessages and keep/access it in state.
 
   /**
    * Workaround for iOS auto-zoom issue (WF-4074)
    * This temporarily disables the parent page's ability to change zoom whilst any of the MVF embeds is focused on by the user
    */
-  if (isPantherFeatureInUse) {
-    if (isIOS() && !window.__private__.autoZoom.isSetupComplete) {
-      window.__private__.autoZoom.viewport = document.querySelector(
-        'meta[name=viewport]'
+  if (isIOS() && !window.__private__.autoZoom.isSetupComplete) {
+    window.__private__.autoZoom.viewport = document.querySelector(
+      'meta[name=viewport]'
+    );
+    if (window.__private__.autoZoom.viewport?.content) {
+      // Clone (copy by value) the original viewport settings on the parent page as a separate reference
+      // in order to be able to restore them again after user interactions with the widget are finished
+      window.__private__.autoZoom.originalParentPageViewport = JSON.parse(
+        JSON.stringify(window.__private__.autoZoom.viewport.content)
       );
-      if (window.__private__.autoZoom.viewport?.content) {
-        // Clone (copy by value) the original viewport settings on the parent page as a separate reference
-        // in order to be able to restore them again after user interactions with the widget are finished
-        window.__private__.autoZoom.originalParentPageViewport = JSON.parse(
-          JSON.stringify(window.__private__.autoZoom.viewport.content)
+    }
+    if (
+      !window.__private__.autoZoom.widgets ||
+      !Array.isArray(window.__private__.autoZoom.widgets)
+    ) {
+      window.__private__.autoZoom.widgets = [];
+    }
+
+    window.focus();
+    window.__private__.autoZoom.hasAWidgetBeenSelected = false;
+    window.__private__.autoZoom.widgetInteractionListener =
+      window.addEventListener('blur', () => {
+        if (
+          window.__private__.autoZoom.widgets.some(
+            (widget) => document.activeElement === widget
+          )
+        ) {
+          window.__private__.autoZoom.hasAWidgetBeenSelected = true;
+
+          if (window.__private__.autoZoom.viewport?.content) {
+            if (
+              window.__private__.autoZoom.originalParentPageViewport?.match(
+                /user-scalable *= *(no|yes|0.*|1.*)/
+              )
+            ) {
+              window.__private__.autoZoom.viewport.setAttribute(
+                'content',
+                window.__private__.autoZoom.originalParentPageViewport.replaceAll(
+                  /user-scalable *= *(no|yes|0[^,]*|1[^,]*)/g,
+                  'user-scalable=no'
+                )
+              );
+            } else {
+              window.__private__.autoZoom.viewport.setAttribute(
+                'content',
+                `${window.__private__.autoZoom.originalParentPageViewport}, user-scalable=no`
+              );
+            }
+          } else {
+            window.__private__.autoZoom.metaTag =
+              document.createElement('meta');
+            window.__private__.autoZoom.metaTag.name = 'viewport';
+            window.__private__.autoZoom.metaTag.content =
+              'width=device-width, initial-scale=1, maximum-scale=10, user-scalable=no'; // Setting default values for most of these except for the necessary value of 'no' for the zoom control property 'user-scalable' and width (which has no default value according to https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag)
+            document
+              .getElementsByTagName('head')[0]
+              .appendChild(window.__private__.autoZoom.metaTag);
+          }
+        }
+        window.removeEventListener(
+          'blur',
+          window.__private__.autoZoom.widgetInteractionListener
+        );
+      });
+
+    window.__private__.autoZoom.widgetBlurListener = window.addEventListener(
+      'focus',
+      () => {
+        if (
+          window.__private__.autoZoom.hasAWidgetBeenSelected === true &&
+          window.__private__.autoZoom.widgets.every(
+            (widget) => document.activeElement !== widget
+          )
+        ) {
+          window.__private__.autoZoom.hasAWidgetBeenSelected = false;
+
+          if (window.__private__.autoZoom.originalParentPageViewport) {
+            // Restore the original viewport settings of the parent page now that the user's focus has shifted away from the widget
+            window.__private__.autoZoom.viewport.setAttribute(
+              'content',
+              JSON.parse(
+                JSON.stringify(
+                  window.__private__.autoZoom.originalParentPageViewport
+                )
+              )
+            );
+          } else {
+            // Re-enable the user's ability to zoom
+            window.__private__.autoZoom.viewport.setAttribute(
+              'content',
+              'width=device-width, initial-scale=1, maximum-scale=10, user-scalable=yes' // Setting default values for most of these except for width (which has no default value according to https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag)
+            );
+          }
+        }
+        window.removeEventListener(
+          'focus',
+          window.__private__.autoZoom.widgetBlurListener
         );
       }
-      if (
-        !window.__private__.autoZoom.widgets ||
-        !Array.isArray(window.__private__.autoZoom.widgets)
-      ) {
-        window.__private__.autoZoom.widgets = [];
-      }
-
-      window.focus();
-      window.__private__.autoZoom.hasAWidgetBeenSelected = false;
-      window.__private__.autoZoom.widgetInteractionListener =
-        window.addEventListener('blur', () => {
-          if (
-            window.__private__.autoZoom.widgets.some(
-              (widget) => document.activeElement === widget
-            )
-          ) {
-            window.__private__.autoZoom.hasAWidgetBeenSelected = true;
-
-            if (window.__private__.autoZoom.viewport?.content) {
-              if (
-                window.__private__.autoZoom.originalParentPageViewport?.match(
-                  /user-scalable *= *(no|yes|0.*|1.*)/
-                )
-              ) {
-                window.__private__.autoZoom.viewport.setAttribute(
-                  'content',
-                  window.__private__.autoZoom.originalParentPageViewport.replaceAll(
-                    /user-scalable *= *(no|yes|0[^,]*|1[^,]*)/g,
-                    'user-scalable=no'
-                  )
-                );
-              } else {
-                window.__private__.autoZoom.viewport.setAttribute(
-                  'content',
-                  `${window.__private__.autoZoom.originalParentPageViewport}, user-scalable=no`
-                );
-              }
-            } else {
-              window.__private__.autoZoom.metaTag =
-                document.createElement('meta');
-              window.__private__.autoZoom.metaTag.name = 'viewport';
-              window.__private__.autoZoom.metaTag.content =
-                'width=device-width, initial-scale=1, maximum-scale=10, user-scalable=no'; // Setting default values for most of these except for the necessary value of 'no' for the zoom control property 'user-scalable' and width (which has no default value according to https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag)
-              document
-                .getElementsByTagName('head')[0]
-                .appendChild(window.__private__.autoZoom.metaTag);
-            }
-          }
-          window.removeEventListener(
-            'blur',
-            window.__private__.autoZoom.widgetInteractionListener
-          );
-        });
-
-      window.__private__.autoZoom.widgetBlurListener = window.addEventListener(
-        'focus',
-        () => {
-          if (
-            window.__private__.autoZoom.hasAWidgetBeenSelected === true &&
-            window.__private__.autoZoom.widgets.every(
-              (widget) => document.activeElement !== widget
-            )
-          ) {
-            window.__private__.autoZoom.hasAWidgetBeenSelected = false;
-
-            if (window.__private__.autoZoom.originalParentPageViewport) {
-              // Restore the original viewport settings of the parent page now that the user's focus has shifted away from the widget
-              window.__private__.autoZoom.viewport.setAttribute(
-                'content',
-                JSON.parse(
-                  JSON.stringify(
-                    window.__private__.autoZoom.originalParentPageViewport
-                  )
-                )
-              );
-            } else {
-              // Re-enable the user's ability to zoom
-              window.__private__.autoZoom.viewport.setAttribute(
-                'content',
-                'width=device-width, initial-scale=1, maximum-scale=10, user-scalable=yes' // Setting default values for most of these except for width (which has no default value according to https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag)
-              );
-            }
-          }
-          window.removeEventListener(
-            'focus',
-            window.__private__.autoZoom.widgetBlurListener
-          );
-        }
-      );
-      window.__private__.autoZoom.isSetupComplete = true;
-    }
+    );
+    window.__private__.autoZoom.isSetupComplete = true;
   }
 
   /**
@@ -912,7 +866,6 @@ function runFormWidgetLoader(partnerSiteConfig) {
       if (typeof inputArgument === 'object' && !Array.isArray(inputArgument)) {
         const validTypesMap = {
           formId: 'string',
-          formIdentifier: 'string', // remains here for backwards compatibility - see the comment below about 'CAPTURE naming conventions'
           themeName: 'string',
           campaignId: 'string',
           widgetLabel: 'string',
@@ -928,10 +881,14 @@ function runFormWidgetLoader(partnerSiteConfig) {
           env: 'string',
           domain: 'string',
           belowFold: 'boolean',
-          betaDynamicHeight: 'boolean',
-          betaAutoScroll: 'boolean',
+          dynamicHeight: 'boolean',
+          autoScroll: 'boolean',
           betaFontOverride: 'string',
           useCidFromURL: 'boolean',
+          // Deprecated parameters remain here for backwards compatibility - see the comment below about 'CAPTURE naming conventions'
+          formIdentifier: 'string',
+          betaDynamicHeight: 'boolean',
+          betaAutoScroll: 'boolean',
         };
         const validEventNameTypesMap = {
           initialWidgetLoad: 'function',
@@ -1078,43 +1035,34 @@ function runFormWidgetLoader(partnerSiteConfig) {
               // ALL VALIDATIONS PASSED
               return true;
             }
-            console.log(
-              `MVF Form Loader Error - Container element of your provided id '${partnerSiteConfig.containerId}' for mvfFormWidget cannot be found. Please check the spelling and make sure that the HTML element is present on the page and is positioned above the loader scripts in the body section. Alternatively, please contact your MVF support team.`
-            );
-            formWidgetInfoObject.loadingErrors.push(
-              `MVF Form Loader Error - Container element of your provided id '${partnerSiteConfig.containerId}' for mvfFormWidget cannot be found. Please check the spelling and make sure that the HTML element is present on the page and is positioned above the loader scripts in the body section. Alternatively, please contact your MVF support team.`
-            );
+            const errorMessage = `MVF Form Loader Error - Container element of your provided id '${partnerSiteConfig.containerId}' for mvfFormWidget cannot be found. Please check the spelling and make sure that the HTML element is present on the page and is positioned above the loader scripts in the body section. Alternatively, please contact your MVF support team.`;
+            console.log(errorMessage);
+            formWidgetInfoObject.loadingErrors.push(errorMessage);
+            // Don't display error page as we don't want to break the page if we don't know where to put the widget
             return false;
           }
           // ALL VALIDATIONS PASSED
           return true;
         }
-        console.log(
-          `MVF Form Loader Error(s) below:\n${errors.join(
-            '\n'
-          )}\n\nPlease contact your MVF support team if you cannot resolve these via the provided suggestions.`
-        );
-        formWidgetInfoObject.loadingErrors.push(
-          `MVF Form Loader Error(s) below:\n${errors.join(
-            '\n'
-          )}\n\nPlease contact your MVF support team if you cannot resolve these via the provided suggestions.`
-        );
+        const errorMessage = `MVF Form Loader Error(s) below:\n${errors.join(
+          '\n'
+        )}\n\nPlease contact your MVF support team if you cannot resolve these via the provided suggestions.`;
+        console.log(errorMessage);
+        formWidgetInfoObject.loadingErrors.push(errorMessage);
+        displayErrorPage(partnerSiteConfig, errorMessage);
         return false;
       }
-      console.log(
-        `MVF Form Loader Error - Invalid input argument\n${partnerSiteConfig}\n. Please pass in a JS object to the 'runFormWidgetLoader()' function call or contact your MVF support team, alternatively.`
-      );
-      formWidgetInfoObject.loadingErrors.push(
-        `MVF Form Loader Error - Invalid input argument\n${partnerSiteConfig}\n. Please pass in a JS object to the 'runFormWidgetLoader()' function call or contact your MVF support team, alternatively.`
-      );
+      const errorMessage = `MVF Form Loader Error - Invalid input argument\n${partnerSiteConfig}\n. Please pass in a JS object to the 'runFormWidgetLoader()' function call or contact your MVF support team, alternatively.`;
+      console.log(errorMessage);
+      formWidgetInfoObject.loadingErrors.push(errorMessage);
+      displayErrorPage(partnerSiteConfig, errorMessage);
       return false;
     }
-    console.log(
-      "MVF Form Loader Error - Missing input argument. Please pass in a JS object to the 'runFormWidgetLoader()' function call or contact your MVF support team, alternatively."
-    );
-    formWidgetInfoObject.loadingErrors.push(
-      "MVF Form Loader Error - Missing input argument. Please pass in a JS object to the 'runFormWidgetLoader()' function call or contact your MVF support team, alternatively."
-    );
+    const errorMessage =
+      "MVF Form Loader Error - Missing input argument. Please pass in a JS object to the 'runFormWidgetLoader()' function call or contact your MVF support team, alternatively.";
+    console.log(errorMessage);
+    formWidgetInfoObject.loadingErrors.push(errorMessage);
+    displayErrorPage(partnerSiteConfig, errorMessage);
     return false;
   }
 
@@ -1137,7 +1085,8 @@ function runFormWidgetLoader(partnerSiteConfig) {
     ) {
       return false;
     }
-    formIframe.contentWindow.postMessage('navigation:back', '*');
+    const iFrameElement = document.getElementById(this.iFrameId);
+    iFrameElement?.contentWindow?.postMessage('navigation:back', '*');
     return true;
   }.bind(formWidgetInfoObject);
 
@@ -1221,7 +1170,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
       autoScrollWidget(true);
     } else {
       // Invoke auto scroll after the widget resize completes. Its transition duration is governed by
-      const defaultResizeDuration = isPantherFeatureInUse ? 500 : 110;
+      const defaultResizeDuration = 500;
       const numericWidgetResizeDuration =
         window.__private__.variableHeightTransitionStyle.match(/\d+/);
       const delayUntilWidgetResizeIsDone = numericWidgetResizeDuration
@@ -1237,19 +1186,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
   // Step 1 of 4 - Validate argument object (keys and data types of all values)
   //
 
-  // Patch the partnerSiteConfig input object for backwards compatibility and copy
-  // over any value assigned to the outdated formIdentifier field over to the preferred formId field.
-  // Context:
-  // Since the mandatory field 'formIdentifier' got renamed to 'formId' (to be consistent with CAPTURE naming conventions)
-  // requiring this updated name would be a breaking change to all live embeds on partner sites, until they would update
-  // their snippets. To prevent this unfriendly consequence, this script will now accept either of the two field names.
-  if (
-    Object.prototype.hasOwnProperty.call(partnerSiteConfig, 'formIdentifier')
-  ) {
-    partnerSiteConfig.formId = partnerSiteConfig.formIdentifier;
-    // NOTE: In the logic of the validateInputArgument() function, any bad input data that users have assigned to formIdentifier
-    //       will get flagged as bad input data to the formId field. Be prepared to explain this when facing a support issue.
-  }
+  updatePartnerSiteConfigFields(partnerSiteConfig);
 
   // Google accepted font mapping to font family string
   const fontMappings = {
@@ -1313,25 +1250,11 @@ function runFormWidgetLoader(partnerSiteConfig) {
     const themeName = sanitiseThemeName(partnerSiteConfig.themeName);
     let borderStyleSettings;
     if (themeName !== 'gowizard') {
-      if (isPantherFeatureInUse) {
-        borderStyleSettings =
-          partnerSiteConfig.borderEnabled ||
-          partnerSiteConfig.borderEnabled === undefined
-            ? 'box-shadow: rgba(45, 51, 80, 0.3) 1px 3px 10px 1px; border-radius: 6px; border-style: none;'
-            : 'border-radius: inherit; border-style: none;';
-      } else if (partnerSiteConfig.containerId) {
-        borderStyleSettings =
-          partnerSiteConfig.borderEnabled ||
-          partnerSiteConfig.borderEnabled === undefined
-            ? 'box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px; border-radius: 4px; border-style: none;'
-            : 'border-radius: inherit; border-style: none;';
-      } else {
-        borderStyleSettings =
-          partnerSiteConfig.borderEnabled ||
-          partnerSiteConfig.borderEnabled === undefined
-            ? 'box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px; border-radius: 4px; border-style: none;'
-            : 'border: none;';
-      }
+      borderStyleSettings =
+        partnerSiteConfig.borderEnabled ||
+        partnerSiteConfig.borderEnabled === undefined
+          ? 'box-shadow: rgba(45, 51, 80, 0.3) 1px 3px 10px 1px; border-radius: 6px; border-style: none;'
+          : 'border-radius: inherit; border-style: none;';
     } else {
       borderStyleSettings =
         partnerSiteConfig.borderEnabled ||
@@ -1340,22 +1263,14 @@ function runFormWidgetLoader(partnerSiteConfig) {
           : 'border: none;';
     }
 
-    const providedOrMinimumHeight =
-      partnerSiteConfig.height >= parseInt(minimumWidgetHeight, 10)
-        ? partnerSiteConfig.height
-        : parseInt(minimumWidgetHeight, 10);
     const heightStyleSettings = partnerSiteConfig.height
-      ? `height: ${providedOrMinimumHeight}px;`
-      : 'height: 575px;';
-
+      ? `height: ${boundedHeight(partnerSiteConfig.height)}px;`
+      : `height: ${DEFAULT_HEIGHT}px;`;
     const maxWidthStyleSettings = partnerSiteConfig.maxWidth
       ? `max-width: ${partnerSiteConfig.maxWidth}px;`
       : 'max-width: 800px;';
 
-    let uniqueId = produceUniqueIdString();
-    while (document.querySelector(`#${uniqueId}`)) {
-      uniqueId = produceUniqueIdString();
-    }
+    const uniqueId = getUniqueId();
 
     // If the eventTranslation layer is present add its functionality to the input provided event handlers.
     if (window.chameleon && window.chameleon.mvfGtmTranslationLayer) {
@@ -1367,7 +1282,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
         });
     }
 
-    const resizeDuration = isPantherFeatureInUse ? '500ms' : '110ms';
+    const resizeDuration = '500ms';
     const variableHeightTransitionStyle = `transition: ${resizeDuration} ease height;`;
     /* NOTE: In order to ensure a widget resize that is synchronised with the page transition,
      *       keep the transition duration value of variableHeightTransitionStyle in sync with the app value
@@ -1431,7 +1346,6 @@ function runFormWidgetLoader(partnerSiteConfig) {
       ) {
         parentContainerOfIframeWidget.style.height = minimumWidgetHeight;
       }
-      parentContainerOfIframeWidget.style.overflow = 'hidden';
 
       // Set the widget resize transition style to a smooth ease animation
       parentContainerOfIframeWidget.style.transition = `${resizeDuration} ease height;`;
@@ -1474,19 +1388,11 @@ function runFormWidgetLoader(partnerSiteConfig) {
       const opacityAndBackgroundSettings = `opacity: 1; background: ${parentContainerBackgroundColour};`;
       let parentBorderStyleSettings;
       if (themeName !== 'gowizard') {
-        if (isPantherFeatureInUse) {
-          parentBorderStyleSettings =
-            partnerSiteConfig.borderEnabled ||
-            partnerSiteConfig.borderEnabled === undefined
-              ? 'border-radius: 6px; border-style: none;'
-              : 'border: none;';
-        } else {
-          parentBorderStyleSettings =
-            partnerSiteConfig.borderEnabled ||
-            partnerSiteConfig.borderEnabled === undefined
-              ? 'border-radius: 4px; border-style: none;'
-              : 'border: none;';
-        }
+        parentBorderStyleSettings =
+          partnerSiteConfig.borderEnabled ||
+          partnerSiteConfig.borderEnabled === undefined
+            ? 'border-radius: 6px; border-style: none;'
+            : 'border: none;';
       } else {
         parentBorderStyleSettings =
           partnerSiteConfig.borderEnabled ||
@@ -1494,7 +1400,6 @@ function runFormWidgetLoader(partnerSiteConfig) {
             ? 'box-shadow: rgba(170, 144, 211, 0.75) 0.75rem 0.75rem 0px; border-radius: 13px; border-style: none; border: 2px solid rgb(86, 33, 137); box-sizing: content-box; margin: auto; overflow: hidden;'
             : 'border: none;';
       }
-
       parentContainerOfIframeWidget.setAttribute(
         'style',
         opacityAndBackgroundSettings +
@@ -1513,8 +1418,8 @@ function runFormWidgetLoader(partnerSiteConfig) {
       );
     }
 
-    if (partnerSiteConfig.betaDynamicHeight) {
-      if (partnerSiteConfig.betaAutoScroll) {
+    if (partnerSiteConfig.dynamicHeight) {
+      if (partnerSiteConfig.autoScroll) {
         repositionWidgetWithAutoScroll(
           formIframe,
           parentContainerOfIframeWidget
@@ -1525,9 +1430,8 @@ function runFormWidgetLoader(partnerSiteConfig) {
 
     const loadingBar = createAnimatedLoadingBar(
       parentContainerOfIframeWidget,
-      extractColourFromTheme(partnerSiteConfig, isPantherFeatureInUse),
-      partnerSiteConfig,
-      isPantherFeatureInUse
+      extractColourFromTheme(partnerSiteConfig),
+      partnerSiteConfig
     );
     formIframe.setAttribute('position', 'relative');
     formIframe.setAttribute('z-index', '9998');
@@ -1584,8 +1488,8 @@ function runFormWidgetLoader(partnerSiteConfig) {
           '*'
         );
       }
-      if (partnerSiteConfig.betaDynamicHeight) {
-        const defaultResizeDuration = isPantherFeatureInUse ? 500 : 110;
+      if (partnerSiteConfig.dynamicHeight) {
+        const defaultResizeDuration = 500;
         const numericWidgetResizeDuration =
           window.__private__.variableHeightTransitionStyle.match(/\d+/); // get digits from animation
         const widgetResizeDuration = numericWidgetResizeDuration
@@ -1597,19 +1501,17 @@ function runFormWidgetLoader(partnerSiteConfig) {
           '*'
         );
         formIframe.contentWindow.postMessage(
-          `dynamicHeight:${partnerSiteConfig.betaDynamicHeight}`,
+          `dynamicHeight:${partnerSiteConfig.dynamicHeight}`,
           '*'
         );
         formIframe.contentWindow.postMessage(
           `minimumWidgetHeight:${parseInt(minimumWidgetHeight, 10)}`,
           '*'
         );
-        if (isPantherFeatureInUse) {
-          formIframe.contentWindow.postMessage(
-            `maximumWidgetHeight:${parseInt(maximumWidgetHeight, 10)}`,
-            '*'
-          );
-        }
+        formIframe.contentWindow.postMessage(
+          `maximumWidgetHeight:${parseInt(maximumWidgetHeight, 10)}`,
+          '*'
+        );
         if (window.ResizeObserver) {
           // Set up a dimensions listener on the iframe to notify the React app of any changes in width
           new ResizeObserver(function () {
@@ -1671,15 +1573,12 @@ function runFormWidgetLoader(partnerSiteConfig) {
           '*'
         );
       }
-      // Inform Chameleon about the optional betaAutoScroll value of the widget
+      // Inform Chameleon about the optional autoScroll value of the widget
       if (
-        Object.prototype.hasOwnProperty.call(
-          partnerSiteConfig,
-          'betaAutoScroll'
-        )
+        Object.prototype.hasOwnProperty.call(partnerSiteConfig, 'autoScroll')
       ) {
         formIframe.contentWindow.postMessage(
-          `autoScroll:${partnerSiteConfig.betaAutoScroll}`,
+          `autoScroll:${partnerSiteConfig.autoScroll}`,
           '*'
         );
       }
@@ -1787,10 +1686,8 @@ function runFormWidgetLoader(partnerSiteConfig) {
     parentContainerOfIframeWidget.appendChild(loadingBar);
     parentContainerOfIframeWidget.appendChild(formIframe);
 
-    if (isPantherFeatureInUse) {
-      if (isIOS() && Array.isArray(window?.__private__?.autoZoom?.widgets)) {
-        window.__private__.autoZoom.widgets.push(formIframe);
-      }
+    if (isIOS() && Array.isArray(window?.__private__?.autoZoom?.widgets)) {
+      window.__private__.autoZoom.widgets.push(formIframe);
     }
 
     //
@@ -1850,12 +1747,14 @@ function runFormWidgetLoader(partnerSiteConfig) {
             return;
           }
 
+          const iFrameElement = document.getElementById(iFrameIdOfEventOrigin);
+
           if (event.data.startsWith('cookiesRequested')) {
             // Inform Chameleon about OneTrust cookie and add handler for any cookie changes.
-            sendOneTrustCookieConsentData(formIframe);
+            sendOneTrustCookieConsentData(iFrameElement);
             if (window.OneTrust) {
               window.OneTrust.OnConsentChanged(() =>
-                sendOneTrustCookieConsentData(formIframe)
+                sendOneTrustCookieConsentData(iFrameElement)
               );
             }
             return;
@@ -1919,14 +1818,13 @@ function runFormWidgetLoader(partnerSiteConfig) {
             }
           }
 
-          const iFrameElement = document.getElementById(iFrameIdOfEventOrigin);
           const currentWidgetHeight = iFrameElement
             ? window.getComputedStyle(iFrameElement, null).height
             : '';
           if (
             event.data.startsWith('invokeAutoScroll') &&
             snippetSpecificConfig &&
-            partnerSiteConfig.betaAutoScroll
+            partnerSiteConfig.autoScroll
           ) {
             repositionWidgetWithAutoScroll(iFrameElement, undefined, true);
           }
@@ -1965,52 +1863,25 @@ function runFormWidgetLoader(partnerSiteConfig) {
             }
           }
           // Dynamic iframe height based on incoming requiredWidgetHeight data on every "resizeWidget" event
-          if (isPantherFeatureInUse) {
-            if (
-              iFrameIdOfEventOrigin &&
-              snippetSpecificConfig.betaDynamicHeight &&
-              event.data.startsWith('resizeWidget')
-            ) {
-              let newWidgetHeight = eventInfoObject.requiredWidgetHeight;
-
-              if (
-                parseInt(newWidgetHeight, 10) <
-                parseInt(minimumWidgetHeight, 10)
-              ) {
-                newWidgetHeight = minimumWidgetHeight;
-              }
-
-              if (
-                parseInt(newWidgetHeight, 10) >
-                parseInt(maximumWidgetHeight, 10)
-              ) {
-                newWidgetHeight = maximumWidgetHeight;
-              }
-
-              if (newWidgetHeight !== currentWidgetHeight) {
-                iFrameElement.style.height = newWidgetHeight;
-                const parentContainer = iFrameElement.parentNode;
-                parentContainer.style.height = newWidgetHeight;
-              }
-            }
-          } else if (
+          if (
             iFrameIdOfEventOrigin &&
-            snippetSpecificConfig.betaDynamicHeight &&
-            event.data.startsWith('resizeWidget') &&
-            /**
-             * We want height to change after the first page or if you have navigated back to the first page
-             */
-            (window.__private__?.paging[iFrameIdOfEventOrigin]?.currentPage >
-              1 ||
-              window.__private__.paging[iFrameIdOfEventOrigin].previousPage !==
-                undefined)
+            snippetSpecificConfig.dynamicHeight &&
+            event.data.startsWith('resizeWidget')
           ) {
-            const newWidgetHeight =
-              eventInfoObject.requiredWidgetHeight &&
-              parseInt(eventInfoObject.requiredWidgetHeight, 10) >
-                parseInt(minimumWidgetHeight, 10)
-                ? eventInfoObject.requiredWidgetHeight
-                : minimumWidgetHeight;
+            let newWidgetHeight = eventInfoObject.requiredWidgetHeight;
+
+            if (
+              parseInt(newWidgetHeight, 10) < parseInt(minimumWidgetHeight, 10)
+            ) {
+              newWidgetHeight = minimumWidgetHeight;
+            }
+
+            if (
+              parseInt(newWidgetHeight, 10) > parseInt(maximumWidgetHeight, 10)
+            ) {
+              newWidgetHeight = maximumWidgetHeight;
+            }
+
             if (newWidgetHeight !== currentWidgetHeight) {
               iFrameElement.style.height = newWidgetHeight;
               const parentContainer = iFrameElement.parentNode;

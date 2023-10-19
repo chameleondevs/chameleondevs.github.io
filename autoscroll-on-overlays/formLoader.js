@@ -1213,59 +1213,49 @@ function runFormWidgetLoader(partnerSiteConfig) {
         return undefined;
       }
 
+      /*
+       * This function iterates up along the DOM parentNodes of the provided HTML
+       * element and either reaches the top-level document node and returns
+       * false or returns one of its descendants which fulfills all criteria
+       * of being vertically user-scrollable, visible & taller & wider than 0.
+       */
       const findFirstVerticallyScrollableAncestorContainer = (element) => {
-        /*
-         * This function iterates up along the DOM parentNodes of the provided HTML
-         * element and either reaches the top-level document node and returns
-         * false or returns one of its descendants which fulfills all criteria
-         * of being vertically user-scrollable, visible, taller than and at least
-         * as wide as the provided element.
-         */
-         // TODO - Develop a function that can find the nearest ancestor element that can be y-scrolled within
-         // i.e.
-         // overflowY === auto or scroll
-         // height > iFrame height
-         // width >= iFrame width
-         // element is not window
-         // element is visible
-         if (typeof element !== 'object' || !element.parentNode) {
-           return false;
-         }
-         let ancestor = element.parentNode;
-         while (ancestor && typeof ancestor === 'object') {
-           const ancestorStyles = window.getComputedStyle(ancestor, null);
-           const elementStyles = window.getComputedStyle(element, null);
+        if (typeof element !== 'object' || !element.parentNode) {
+          return false;
+        }
+        let ancestor = element.parentNode;
+        while (ancestor && typeof ancestor === 'object') {
+          const ancestorStyles = window.getComputedStyle(ancestor, null);
+          const elementStyles = window.getComputedStyle(element, null);
 
-           const ancestorIsVerticallyScrollable =
-             ancestorStyles.overflowY === 'auto' ||
-             ancestorStyles.overflowY === 'scroll';
-           const ancestorIsTallerThanElement =
-             parseInt(ancestorStyles.height, 10) >
-             parseInt(elementStyles.height, 10);
-           const ancestorIsAtLeastAsWideAsElement =
-             parseInt(ancestorStyles.width, 10) >=
-             parseInt(elementStyles.width, 10);
-           const ancestorIsVisible =
-             ancestorStyles.display !== 'none' &&
-             ancestorStyles.opacity !== '0' &&
-             ancestorStyles.transparency !== '1';
-           const ancestorIsTopLevelDocument = ancestor.parentNode === null;
+          const ancestorIsVerticallyScrollable =
+            ancestorStyles.overflowY === 'auto' ||
+            ancestorStyles.overflowY === 'scroll';
+          const ancestorIsTallerThanZero =
+            parseInt(ancestorStyles.height, 10) > 0;
+          const ancestorIsWiderThanZero =
+            parseInt(ancestorStyles.width, 10) > 0;
+          const ancestorIsVisible =
+            ancestorStyles.display !== 'none' &&
+            ancestorStyles.opacity !== '0' &&
+            ancestorStyles.transparency !== '1';
+          const ancestorIsTopLevelDocument = ancestor.parentNode === null;
 
-           if (ancestorIsTopLevelDocument) {
-             return false;
-           }
-           if (
-             ancestorIsVisible &&
-             ancestorIsVerticallyScrollable &&
-             ancestorIsTallerThanElement &&
-             ancestorIsAtLeastAsWideAsElement
-           ) {
-             // Return identified custom ancestor scroll container
-             console.log("Custom scroll container identified", ancestor)
-             return ancestor;
-           }
-           ancestor = ancestor.parentNode;
-         }
+          if (ancestorIsTopLevelDocument) {
+            return false;
+          }
+          if (
+            ancestorIsVisible &&
+            ancestorIsVerticallyScrollable &&
+            ancestorIsTallerThanZero &&
+            ancestorIsWiderThanZero
+          ) {
+            // Return identified custom ancestor scroll container
+            console.log("MVF Form Loader Info - Custom scroll container identified")
+            return ancestor;
+          }
+          ancestor = ancestor.parentNode;
+        }
       };
       const scrollableAncestorContainer =
         findFirstVerticallyScrollableAncestorContainer(formIframe) || window;

@@ -1316,6 +1316,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
             yOffsetForVerticalCentering,
           behavior: 'smooth',
         });
+        console.log("MVF Form Loader Debug - Scrolling custom container...")
       } else {
         // Ignore all fixed header bars if the scroll container is not the top-level window
         // TODO: An improvement would be to only take header bars into account that lie within this custom scroll container
@@ -1326,6 +1327,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
             yOffsetForVerticalCentering,
           behavior: 'smooth',
         });
+        console.log("MVF Form Loader Debug - Scrolling window container...")
       }
     }
     if (invokeAutoScrollImmediately) {

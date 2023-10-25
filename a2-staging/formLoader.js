@@ -320,9 +320,9 @@ function runFormWidgetLoader(partnerSiteConfig) {
     // For redirected optimizely variants document.referrer may end up recording the non variant url instead of the
     // referrer. Therefore we should use optimizely tooling to access the original parent. See
     // https://support.optimizely.com/hc/en-us/articles/4410283531021-Redirect-experiments-Test-two-URLs-in-Optimizely#h_01H8YWYSFGYX49BHA0A32CFWJS
-    const preOptimizelyRedirectReferrer = window.optimizelyEdge
+    const preOptimizelyRedirectReferrer = window.optimizelyEdge?.get ? window.optimizelyEdge
       ?.get('state')
-      ?.getRedirectInfo()?.referrer;
+      ?.getRedirectInfo()?.referrer : undefined;
 
     return preOptimizelyRedirectReferrer || document.referrer;
   }
@@ -1212,6 +1212,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
         // Only if we are not loading the initial page, autoScroll should kick in immediately after a dynamic resize
         return undefined;
       }
+      window.__private__.isAutoScrollInitiated = true;
 
       /*
        * This function iterates up along the DOM parentNodes of the provided HTML
@@ -1261,6 +1262,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
             ancestorIsWiderThanZero
           ) {
             // Return identified custom ancestor scroll container
+            console.log("MVF Form Loader Info - Custom scroll container identified")
             return ancestor;
           }
           ancestor = ancestor.parentNode;
@@ -1355,8 +1357,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
         : defaultResizeDuration;
       parentContainerOfIframeWidget.addEventListener('transitionstart', () => {
         if (!window.__private__.isAutoScrollInitiated) {
-          setTimeout(autoScrollWidget, delayUntilWidgetResizeIsDone);
-          window.__private__.isAutoScrollInitiated = true;
+          setTimeout(autoScrollWidget, delayUntilWidgetResizeIsDone)
         }
       });
     }

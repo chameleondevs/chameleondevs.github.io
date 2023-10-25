@@ -1212,6 +1212,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
         // Only if we are not loading the initial page, autoScroll should kick in immediately after a dynamic resize
         return undefined;
       }
+      window.__private__.isAutoScrollInitiated = true;
 
       /*
        * This function iterates up along the DOM parentNodes of the provided HTML
@@ -1357,7 +1358,6 @@ function runFormWidgetLoader(partnerSiteConfig) {
       parentContainerOfIframeWidget.addEventListener('transitionstart', () => {
         if (!window.__private__.isAutoScrollInitiated) {
           setTimeout(autoScrollWidget, delayUntilWidgetResizeIsDone)
-          window.__private__.isAutoScrollInitiated = true;
         }
       });
     }

@@ -1219,15 +1219,15 @@ function runFormWidgetLoader(partnerSiteConfig) {
        * false or returns one of its descendants which fulfills all criteria
        * of being vertically user-scrollable, visible & taller & wider than 0.
        */
-      const findFirstVerticallyScrollableNonWindowAncestorContainer = (element) => {
+      const findFirstVerticallyScrollableNonWindowAncestorContainer = (
+        element
+      ) => {
         if (typeof element !== 'object' || !element.parentNode) {
           return false;
         }
         let ancestor = element.parentNode;
         while (ancestor && typeof ancestor === 'object') {
           const ancestorStyles = window.getComputedStyle(ancestor, null);
-          const elementStyles = window.getComputedStyle(element, null);
-
           const ancestorIsVerticallyScrollable =
             ancestorStyles.overflowY === 'auto' ||
             ancestorStyles.overflowY === 'scroll';
@@ -1258,7 +1258,8 @@ function runFormWidgetLoader(partnerSiteConfig) {
         }
       };
       const scrollableAncestorContainer =
-        findFirstVerticallyScrollableNonWindowAncestorContainer(formIframe) || window;
+        findFirstVerticallyScrollableNonWindowAncestorContainer(formIframe) ||
+        window;
       // Step 1 of 2 - Identifying the presence of all fixed elements which restrict the visible window area and calculating any additional vertical offset
       let heightOfAllFixedHeaderBars = 0;
       let heightOfAllFixedFooterBars = 0;
@@ -1291,12 +1292,14 @@ function runFormWidgetLoader(partnerSiteConfig) {
       }
       const heightOfAllFixedElements =
         heightOfAllFixedHeaderBars + heightOfAllFixedFooterBars;
-      const scrollContainerHeight = scrollableAncestorContainer === window
-        ? scrollableAncestorContainer.innerHeight
-        : parseInt(getComputedStyle(scrollableAncestorContainer).height, 10);
-      const heightOfVisibleWindowArea = scrollableAncestorContainer === window
-        ? scrollContainerHeight - heightOfAllFixedElements
-        : scrollContainerHeight;
+      const scrollContainerHeight =
+        scrollableAncestorContainer === window
+          ? scrollableAncestorContainer.innerHeight
+          : parseInt(getComputedStyle(scrollableAncestorContainer).height, 10);
+      const heightOfVisibleWindowArea =
+        scrollableAncestorContainer === window
+          ? scrollContainerHeight - heightOfAllFixedElements
+          : scrollContainerHeight;
       const heightDifferenceBetweenWidgetAndVisibleWindowArea =
         heightOfVisibleWindowArea - formIframe.clientHeight;
       const yOffsetForVerticalCentering =
@@ -1322,9 +1325,9 @@ function runFormWidgetLoader(partnerSiteConfig) {
         // TODO: An improvement (currently de-scoped by the team) would be to only take header bars into account that lie within this custom scroll container
         scrollableAncestorContainer.scroll({
           top:
-            (currentWidgetPositionY +
+            currentWidgetPositionY +
             scrollableAncestorContainer.scrollTop -
-            yOffsetForVerticalCentering),
+            yOffsetForVerticalCentering,
           behavior: 'smooth',
         });
         window.__private__.isAutoScrollInitiated = false;

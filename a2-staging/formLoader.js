@@ -1197,156 +1197,169 @@ function runFormWidgetLoader(partnerSiteConfig) {
    * that is at the end of every dynamic height adjustment, which happens on page navigation.
    */
   function repositionWidgetWithAutoScroll(
-   formIframe,
-   parentContainer,
-   invokeAutoScrollImmediately = false
+    formIframe,
+    parentContainer,
+    invokeAutoScrollImmediately = false
   ) {
-   const parentContainerOfIframeWidget =
-     parentContainer || formIframe?.parentNode;
-   function autoScrollWidget(checkPaging = true) {
-     if (
-       checkPaging &&
-       window.__private__.paging[formIframe.id].currentPage === 1 &&
-       window.__private__.paging[formIframe.id].previousPage === undefined
-     ) {
-       // Only if we are not loading the initial page, autoScroll should kick in immediately after a dynamic resize
-       return undefined;
-     }
+    const parentContainerOfIframeWidget =
+      parentContainer || formIframe?.parentNode;
+    function autoScrollWidget(checkPaging = true) {
+      if (
+        checkPaging &&
+        window.__private__.paging[formIframe.id].currentPage === 1 &&
+        window.__private__.paging[formIframe.id].previousPage === undefined
+      ) {
+        // Only if we are not loading the initial page, autoScroll should kick in immediately after a dynamic resize
+        return undefined;
+      }
 
-     /*
-      * This function iterates up along the DOM parentNodes of the provided HTML
-      * element and either reaches the top-level document node and returns
-      * false or returns one of its descendants which fulfills all criteria
-      * of being vertically user-scrollable, visible & taller & wider than 0.
-      */
-     const findFirstVerticallyScrollableNonWindowAncestorContainer = (element) => {
-       if (typeof element !== 'object' || !element.parentNode) {
-         return false;
-       }
-       let ancestor = element.parentNode;
-       while (ancestor && typeof ancestor === 'object') {
-         const ancestorStyles = window.getComputedStyle(ancestor, null);
-         const elementStyles = window.getComputedStyle(element, null);
+      /*
+       * This function iterates up along the DOM parentNodes of the provided HTML
+       * element and either reaches the top-level document node and returns
+       * false or returns one of its descendants which fulfills all criteria
+       * of being vertically user-scrollable, visible & taller & wider than 0.
+       */
+      const findFirstVerticallyScrollableNonWindowAncestorContainer = (
+        element
+      ) => {
+        if (
+          typeof element !== 'object' ||
+          !element.parentNode ||
+          element === document ||
+          element === window
+        ) {
+          return false;
+        }
+        let ancestor = element.parentNode;
+        while (
+          ancestor &&
+          typeof ancestor === 'object' &&
+          ancestor !== document &&
+          ancestor !== window
+        ) {
+          const ancestorStyles = window.getComputedStyle(ancestor, null);
+          const ancestorIsVerticallyScrollable =
+            ancestorStyles.overflowY === 'auto' ||
+            ancestorStyles.overflowY === 'scroll';
+          const ancestorIsTallerThanZero =
+            parseInt(ancestorStyles.height, 10) > 0;
+          const ancestorIsWiderThanZero =
+            parseInt(ancestorStyles.width, 10) > 0;
+          const ancestorIsVisible =
+            ancestorStyles.display !== 'none' &&
+            ancestorStyles.opacity !== '0' &&
+            ancestorStyles.transparency !== '1';
+          const ancestorIsTopLevelDocument = ancestor.parentNode === null;
 
-         const ancestorIsVerticallyScrollable =
-           ancestorStyles.overflowY === 'auto' ||
-           ancestorStyles.overflowY === 'scroll';
-         const ancestorIsTallerThanZero =
-           parseInt(ancestorStyles.height, 10) > 0;
-         const ancestorIsWiderThanZero =
-           parseInt(ancestorStyles.width, 10) > 0;
-         const ancestorIsVisible =
-           ancestorStyles.display !== 'none' &&
-           ancestorStyles.opacity !== '0' &&
-           ancestorStyles.transparency !== '1';
-         const ancestorIsTopLevelDocument = ancestor.parentNode === null;
+          if (ancestorIsTopLevelDocument) {
+            return false;
+          }
+          if (
+            ancestorIsVisible &&
+            ancestorIsVerticallyScrollable &&
+            ancestorIsTallerThanZero &&
+            ancestorIsWiderThanZero
+          ) {
+            // Return identified custom ancestor scroll container
+            return ancestor;
+          }
+          ancestor = ancestor.parentNode;
+        }
+        return false;
+      };
+      const scrollableAncestorContainer =
+        findFirstVerticallyScrollableNonWindowAncestorContainer(formIframe) ||
+        window;
+      // Step 1 of 2 - Identifying the presence of all fixed elements which restrict the visible window area and calculating any additional vertical offset
+      let heightOfAllFixedHeaderBars = 0;
+      let heightOfAllFixedFooterBars = 0;
+      const elements = document.body.getElementsByTagName('*');
+      /* NOTE: This code may impede performance and the auto-scroll may seem delayed (if the web page contains many
+       *       (e.g. > 100000 elements) since it iterates over each one in search for a potential fixed/sticky headerbar
+       */
 
-         if (ancestorIsTopLevelDocument) {
-           return false;
-         }
-         if (
-           ancestorIsVisible &&
-           ancestorIsVerticallyScrollable &&
-           ancestorIsTallerThanZero &&
-           ancestorIsWiderThanZero
-         ) {
-           // Return identified custom ancestor scroll container
-           console.log("MVF Form Loader Info - Custom scroll container identified")
-           return ancestor;
-         }
-         ancestor = ancestor.parentNode;
-       }
-     };
-     const scrollableAncestorContainer =
-       findFirstVerticallyScrollableNonWindowAncestorContainer(formIframe) || window;
-     // Step 1 of 2 - Identifying the presence of all fixed elements which restrict the visible window area and calculating any additional vertical offset
-     let heightOfAllFixedHeaderBars = 0;
-     let heightOfAllFixedFooterBars = 0;
-     const elements = document.body.getElementsByTagName('*');
-     /* NOTE: This code may impede performance and the auto-scroll may seem delayed (if the web page contains many
-      *       (e.g. > 100000 elements) since it iterates over each one in search for a potential fixed/sticky headerbar
-      */
+      for (let i = 0; i < elements.length; i += 1) {
+        const computedStyleOfElement = window.getComputedStyle(
+          elements[i],
+          null
+        );
+        if (
+          (computedStyleOfElement.getPropertyValue('position') === 'fixed' ||
+            computedStyleOfElement.getPropertyValue('position') === 'sticky') &&
+          elements[i].clientWidth === document.body.clientWidth &&
+          computedStyleOfElement.getPropertyValue('display') !== 'none' &&
+          computedStyleOfElement.getPropertyValue('opacity') !== '0'
+        ) {
+          if (
+            elements[i].getBoundingClientRect().top <=
+            formIframe.getBoundingClientRect().top
+          ) {
+            heightOfAllFixedHeaderBars += elements[i].clientHeight;
+          } else {
+            heightOfAllFixedFooterBars += elements[i].clientHeight;
+          }
+        }
+      }
+      const heightOfAllFixedElements =
+        heightOfAllFixedHeaderBars + heightOfAllFixedFooterBars;
+      const scrollContainerHeight =
+        scrollableAncestorContainer === window
+          ? scrollableAncestorContainer.innerHeight
+          : parseInt(getComputedStyle(scrollableAncestorContainer).height, 10);
+      const heightOfVisibleWindowArea =
+        scrollableAncestorContainer === window
+          ? scrollContainerHeight - heightOfAllFixedElements
+          : scrollContainerHeight;
+      const heightDifferenceBetweenWidgetAndVisibleWindowArea =
+        heightOfVisibleWindowArea - formIframe.clientHeight;
+      const yOffsetForVerticalCentering =
+        heightDifferenceBetweenWidgetAndVisibleWindowArea > 0
+          ? heightDifferenceBetweenWidgetAndVisibleWindowArea / 2
+          : 0;
 
-     for (let i = 0; i < elements.length; i += 1) {
-       const computedStyleOfElement = window.getComputedStyle(
-         elements[i],
-         null
-       );
-       if (
-         (computedStyleOfElement.getPropertyValue('position') === 'fixed' ||
-           computedStyleOfElement.getPropertyValue('position') === 'sticky') &&
-         elements[i].clientWidth === document.body.clientWidth &&
-         computedStyleOfElement.getPropertyValue('display') !== 'none' &&
-         computedStyleOfElement.getPropertyValue('opacity') !== '0'
-       ) {
-         if (
-           elements[i].getBoundingClientRect().top <=
-           formIframe.getBoundingClientRect().top
-         ) {
-           heightOfAllFixedHeaderBars += elements[i].clientHeight;
-         } else {
-           heightOfAllFixedFooterBars += elements[i].clientHeight;
-         }
-       }
-     }
-     const heightOfAllFixedElements =
-       heightOfAllFixedHeaderBars + heightOfAllFixedFooterBars;
-     const scrollContainerHeight = scrollableAncestorContainer === window
-       ? scrollableAncestorContainer.innerHeight
-       : parseInt(getComputedStyle(scrollableAncestorContainer).height, 10);
-     const heightOfVisibleWindowArea = scrollableAncestorContainer === window
-       ? scrollContainerHeight - heightOfAllFixedElements
-       : scrollContainerHeight;
-     const heightDifferenceBetweenWidgetAndVisibleWindowArea =
-       heightOfVisibleWindowArea - formIframe.clientHeight;
-     const yOffsetForVerticalCentering =
-       heightDifferenceBetweenWidgetAndVisibleWindowArea > 0
-         ? heightDifferenceBetweenWidgetAndVisibleWindowArea / 2
-         : 0;
+      // Step 2 of 2 - Shifting the position of the widget (excl. all sticky, fixed header bars)
+      const currentWidgetPositionY = formIframe.getBoundingClientRect().y;
 
-     // Step 2 of 2 - Shifting the position of the widget (excl. all sticky, fixed header bars)
-     const currentWidgetPositionY = formIframe.getBoundingClientRect().y;
-
-     if (scrollableAncestorContainer === window) {
-       scrollableAncestorContainer.scroll({
-         top:
-           currentWidgetPositionY +
-           scrollableAncestorContainer.pageYOffset -
-           heightOfAllFixedHeaderBars -
-           yOffsetForVerticalCentering,
-         behavior: 'smooth',
-       });
-       window.__private__.isAutoScrollInitiated = false;
-     } else {
-       // Ignore all fixed header bars if the scroll container is not the top-level window
-       // TODO: An improvement (currently de-scoped by the team) would be to only take header bars into account that lie within this custom scroll container
-       scrollableAncestorContainer.scroll({
-         top:
-           (currentWidgetPositionY +
-           scrollableAncestorContainer.scrollTop -
-           yOffsetForVerticalCentering),
-         behavior: 'smooth',
-       });
-       window.__private__.isAutoScrollInitiated = false;
-     }
-   }
-   if (invokeAutoScrollImmediately) {
-     autoScrollWidget(true);
-   } else {
-     // Invoke auto scroll after the widget resize completes. Its transition duration is governed by
-     const defaultResizeDuration = 500;
-     const numericWidgetResizeDuration =
-       window.__private__.variableHeightTransitionStyle.match(/\d+/);
-     const delayUntilWidgetResizeIsDone = numericWidgetResizeDuration
-       ? parseInt(numericWidgetResizeDuration[0], 10)
-       : defaultResizeDuration;
-     parentContainerOfIframeWidget.addEventListener('transitionstart', () => {
-       if (!window.__private__.isAutoScrollInitiated) {
-         setTimeout(autoScrollWidget, delayUntilWidgetResizeIsDone)
-         window.__private__.isAutoScrollInitiated = true;
-       }
-     });
-   }
+      if (scrollableAncestorContainer === window) {
+        scrollableAncestorContainer.scroll({
+          top:
+            currentWidgetPositionY +
+            scrollableAncestorContainer.pageYOffset -
+            heightOfAllFixedHeaderBars -
+            yOffsetForVerticalCentering,
+          behavior: 'smooth',
+        });
+        window.__private__.isAutoScrollInitiated = false;
+      } else {
+        // Ignore all fixed header bars if the scroll container is not the top-level window
+        // TODO: An improvement (currently de-scoped by the team) would be to only take header bars into account that lie within this custom scroll container
+        scrollableAncestorContainer.scroll({
+          top:
+            currentWidgetPositionY +
+            scrollableAncestorContainer.scrollTop -
+            yOffsetForVerticalCentering,
+          behavior: 'smooth',
+        });
+        window.__private__.isAutoScrollInitiated = false;
+      }
+    }
+    if (invokeAutoScrollImmediately) {
+      autoScrollWidget(true);
+    } else {
+      // Invoke auto scroll after the widget resize completes. Its transition duration is governed by
+      const defaultResizeDuration = 500;
+      const numericWidgetResizeDuration =
+        window.__private__.variableHeightTransitionStyle.match(/\d+/);
+      const delayUntilWidgetResizeIsDone = numericWidgetResizeDuration
+        ? parseInt(numericWidgetResizeDuration[0], 10)
+        : defaultResizeDuration;
+      parentContainerOfIframeWidget.addEventListener('transitionstart', () => {
+        if (!window.__private__.isAutoScrollInitiated) {
+          setTimeout(autoScrollWidget, delayUntilWidgetResizeIsDone);
+          window.__private__.isAutoScrollInitiated = true;
+        }
+      });
+    }
   }
 
   //

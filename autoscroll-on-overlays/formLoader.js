@@ -1325,13 +1325,13 @@ function runFormWidgetLoader(partnerSiteConfig) {
         console.log('Positions before ... scrollableAncestorContainer.scrollTop', scrollableAncestorContainer.scrollTop)
         console.log('Positions before ... yOffsetForVerticalCentering', yOffsetForVerticalCentering)
         setTimeout(() => {
-            scrollableAncestorContainer.scroll({
-              top:
-                (currentWidgetPositionY +
-                scrollableAncestorContainer.scrollTop -
-                yOffsetForVerticalCentering),
-              behavior: 'smooth',
-            });
+          scrollableAncestorContainer.scroll({
+            top:
+              (currentWidgetPositionY +
+              scrollableAncestorContainer.scrollTop -
+              yOffsetForVerticalCentering),
+            behavior: 'smooth',
+          });
         }, 500);
 
         setTimeout(() => {
@@ -1352,7 +1352,11 @@ function runFormWidgetLoader(partnerSiteConfig) {
         ? parseInt(numericWidgetResizeDuration[0], 10)
         : defaultResizeDuration;
       parentContainerOfIframeWidget.addEventListener('transitionstart', () =>
+        console.log('transitionstart EVENT fired')
         setTimeout(autoScrollWidget, delayUntilWidgetResizeIsDone)
+      );
+      parentContainerOfIframeWidget.addEventListener('transitionend', () =>
+        console.log('transitionend EVENT fired')
       );
     }
   }

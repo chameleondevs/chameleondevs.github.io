@@ -1351,13 +1351,13 @@ function runFormWidgetLoader(partnerSiteConfig) {
       const delayUntilWidgetResizeIsDone = numericWidgetResizeDuration
         ? parseInt(numericWidgetResizeDuration[0], 10)
         : defaultResizeDuration;
-      parentContainerOfIframeWidget.addEventListener('transitionstart', () =>
+      parentContainerOfIframeWidget.addEventListener('transitionstart', () => {
         console.log('transitionstart EVENT fired')
         setTimeout(autoScrollWidget, delayUntilWidgetResizeIsDone)
-      );
-      parentContainerOfIframeWidget.addEventListener('transitionend', () =>
+      });
+      parentContainerOfIframeWidget.addEventListener('transitionend', () => {
         console.log('transitionend EVENT fired')
-      );
+      });
     }
   }
 

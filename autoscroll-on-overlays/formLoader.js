@@ -1332,7 +1332,8 @@ function runFormWidgetLoader(partnerSiteConfig) {
               yOffsetForVerticalCentering),
             behavior: 'smooth',
           });
-        }, 500);
+          window.__private__.isAutoScrollInitiated = false;
+        }, 0);
 
         setTimeout(() => {
           console.log('Positions after ... currentWidgetPositionY', formIframe.getBoundingClientRect().y)
@@ -1352,11 +1353,10 @@ function runFormWidgetLoader(partnerSiteConfig) {
         ? parseInt(numericWidgetResizeDuration[0], 10)
         : defaultResizeDuration;
       parentContainerOfIframeWidget.addEventListener('transitionstart', () => {
-        console.log('transitionstart EVENT fired')
-        setTimeout(autoScrollWidget, delayUntilWidgetResizeIsDone)
-      });
-      parentContainerOfIframeWidget.addEventListener('transitionend', () => {
-        console.log('transitionend EVENT fired')
+        if (!window.__private__.isAutoScrollInitiated) {
+          setTimeout(autoScrollWidget, delayUntilWidgetResizeIsDone)
+          window.__private__.isAutoScrollInitiated = true;
+        }
       });
     }
   }

@@ -1222,11 +1222,21 @@ function runFormWidgetLoader(partnerSiteConfig) {
       const findFirstVerticallyScrollableNonWindowAncestorContainer = (
         element
       ) => {
-        if (typeof element !== 'object' || !element.parentNode) {
+        if (
+          typeof element !== 'object' ||
+          !element.parentNode ||
+          element === document ||
+          element === window
+        ) {
           return false;
         }
         let ancestor = element.parentNode;
-        while (ancestor && typeof ancestor === 'object') {
+        while (
+          ancestor &&
+          typeof ancestor === 'object' &&
+          ancestor !== document &&
+          ancestor !== window
+        ) {
           const ancestorStyles = window.getComputedStyle(ancestor, null);
           const ancestorIsVerticallyScrollable =
             ancestorStyles.overflowY === 'auto' ||
@@ -1256,6 +1266,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
           }
           ancestor = ancestor.parentNode;
         }
+        return false;
       };
       const scrollableAncestorContainer =
         findFirstVerticallyScrollableNonWindowAncestorContainer(formIframe) ||

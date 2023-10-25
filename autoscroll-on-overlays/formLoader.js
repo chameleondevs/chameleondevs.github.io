@@ -1320,20 +1320,20 @@ function runFormWidgetLoader(partnerSiteConfig) {
       } else {
         // Ignore all fixed header bars if the scroll container is not the top-level window
         // TODO: An improvement (currently de-scoped by the team) would be to only take header bars into account that lie within this custom scroll container
-        console.log('auto-scrolling for custom scroll container ...')
+        console.log('auto-scrolling for custom scroll container ...', scrollableAncestorContainer)
         console.log('Positions before ... currentWidgetPositionY', currentWidgetPositionY)
         console.log('Positions before ... scrollableAncestorContainer.scrollTop', scrollableAncestorContainer.scrollTop)
         console.log('Positions before ... yOffsetForVerticalCentering', yOffsetForVerticalCentering)
-        setTimeout(() => scrollableAncestorContainer.scroll({
+        setTimeout(() => if (!window.autoScrollDone) { scrollableAncestorContainer.scroll({
           top:
-            currentWidgetPositionY +
+            (currentWidgetPositionY +
             scrollableAncestorContainer.scrollTop -
-            yOffsetForVerticalCentering,
+            yOffsetForVerticalCentering),
           behavior: 'smooth',
-        }), 500);
-
+        }}), 500);
+window.autoScrollDone = true
         setTimeout(() => {
-          console.log('Positions after ... currentWidgetPositionY', currentWidgetPositionY)
+          console.log('Positions after ... currentWidgetPositionY', formIframe.getBoundingClientRect().y)
           console.log('Positions after ... scrollableAncestorContainer.scrollTop', scrollableAncestorContainer.scrollTop)
           console.log('Positions after ... yOffsetForVerticalCentering', yOffsetForVerticalCentering)
         }, 2500);

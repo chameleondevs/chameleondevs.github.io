@@ -1336,7 +1336,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
           console.log('Positions after ... currentWidgetPositionY', currentWidgetPositionY)
           console.log('Positions after ... scrollableAncestorContainer.scrollTop', scrollableAncestorContainer.scrollTop)
           console.log('Positions after ... yOffsetForVerticalCentering', yOffsetForVerticalCentering)
-        }), 500);
+        }, 500);
       }
     }
     if (invokeAutoScrollImmediately) {

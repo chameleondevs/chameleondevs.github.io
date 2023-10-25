@@ -1325,7 +1325,6 @@ function runFormWidgetLoader(partnerSiteConfig) {
         console.log('Positions before ... scrollableAncestorContainer.scrollTop', scrollableAncestorContainer.scrollTop)
         console.log('Positions before ... yOffsetForVerticalCentering', yOffsetForVerticalCentering)
         setTimeout(() => {
-          if (!window.autoScrollDone) {
             scrollableAncestorContainer.scroll({
               top:
                 (currentWidgetPositionY +
@@ -1333,8 +1332,6 @@ function runFormWidgetLoader(partnerSiteConfig) {
                 yOffsetForVerticalCentering),
               behavior: 'smooth',
             });
-          }
-          window.autoScrollDone = true;
         }, 500);
 
         setTimeout(() => {

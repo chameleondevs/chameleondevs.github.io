@@ -1319,9 +1319,8 @@ function runFormWidgetLoader(partnerSiteConfig) {
         });
       } else {
         // Ignore all fixed header bars if the scroll container is not the top-level window
-        // TODO: An improvement would be to only take header bars into account that lie within this custom scroll container
+        // TODO: An improvement (currently de-scoped by the team) would be to only take header bars into account that lie within this custom scroll container
         console.log('auto-scrolling for custom scroll container ...')
-        console.log('Positions before ... scrollableAncestorContainer.scrollY', scrollableAncestorContainer.scrollY)
         console.log('Positions before ... currentWidgetPositionY', currentWidgetPositionY)
         console.log('Positions before ... scrollableAncestorContainer.scrollTop', scrollableAncestorContainer.scrollTop)
         console.log('Positions before ... yOffsetForVerticalCentering', yOffsetForVerticalCentering)
@@ -1331,6 +1330,12 @@ function runFormWidgetLoader(partnerSiteConfig) {
             scrollableAncestorContainer.scrollTop -
             yOffsetForVerticalCentering,
           behavior: 'smooth',
+        }), 500);
+
+        setTimeout(() => {
+          console.log('Positions after ... currentWidgetPositionY', currentWidgetPositionY)
+          console.log('Positions after ... scrollableAncestorContainer.scrollTop', scrollableAncestorContainer.scrollTop)
+          console.log('Positions after ... yOffsetForVerticalCentering', yOffsetForVerticalCentering)
         }), 500);
       }
     }

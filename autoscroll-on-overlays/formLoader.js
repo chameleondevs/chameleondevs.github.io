@@ -1219,7 +1219,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
        * false or returns one of its descendants which fulfills all criteria
        * of being vertically user-scrollable, visible & taller & wider than 0.
        */
-      const findFirstVerticallyScrollableAncestorContainer = (element) => {
+      const findFirstVerticallyScrollableNonWindowAncestorContainer = (element) => {
         if (typeof element !== 'object' || !element.parentNode) {
           return false;
         }
@@ -1258,7 +1258,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
         }
       };
       const scrollableAncestorContainer =
-        findFirstVerticallyScrollableAncestorContainer(formIframe) || window;
+        findFirstVerticallyScrollableNonWindowAncestorContainer(formIframe) || window;
       // Step 1 of 2 - Identifying the presence of all fixed elements which restrict the visible window area and calculating any additional vertical offset
       let heightOfAllFixedHeaderBars = 0;
       let heightOfAllFixedFooterBars = 0;
@@ -1308,7 +1308,6 @@ function runFormWidgetLoader(partnerSiteConfig) {
       const currentWidgetPositionY = formIframe.getBoundingClientRect().y;
 
       if (scrollableAncestorContainer === window) {
-        console.log('auto-scrolling for window container ...')
         scrollableAncestorContainer.scroll({
           top:
             currentWidgetPositionY +
@@ -1317,29 +1316,18 @@ function runFormWidgetLoader(partnerSiteConfig) {
             yOffsetForVerticalCentering,
           behavior: 'smooth',
         });
+        window.__private__.isAutoScrollInitiated = false;
       } else {
         // Ignore all fixed header bars if the scroll container is not the top-level window
         // TODO: An improvement (currently de-scoped by the team) would be to only take header bars into account that lie within this custom scroll container
-        console.log('auto-scrolling for custom scroll container ...', scrollableAncestorContainer)
-        console.log('Positions before ... currentWidgetPositionY', currentWidgetPositionY)
-        console.log('Positions before ... scrollableAncestorContainer.scrollTop', scrollableAncestorContainer.scrollTop)
-        console.log('Positions before ... yOffsetForVerticalCentering', yOffsetForVerticalCentering)
-        setTimeout(() => {
-          scrollableAncestorContainer.scroll({
-            top:
-              (currentWidgetPositionY +
-              scrollableAncestorContainer.scrollTop -
-              yOffsetForVerticalCentering),
-            behavior: 'smooth',
-          });
-          window.__private__.isAutoScrollInitiated = false;
-        }, 0);
-
-        setTimeout(() => {
-          console.log('Positions after ... currentWidgetPositionY', formIframe.getBoundingClientRect().y)
-          console.log('Positions after ... scrollableAncestorContainer.scrollTop', scrollableAncestorContainer.scrollTop)
-          console.log('Positions after ... yOffsetForVerticalCentering', yOffsetForVerticalCentering)
-        }, 2500);
+        scrollableAncestorContainer.scroll({
+          top:
+            (currentWidgetPositionY +
+            scrollableAncestorContainer.scrollTop -
+            yOffsetForVerticalCentering),
+          behavior: 'smooth',
+        });
+        window.__private__.isAutoScrollInitiated = false;
       }
     }
     if (invokeAutoScrollImmediately) {

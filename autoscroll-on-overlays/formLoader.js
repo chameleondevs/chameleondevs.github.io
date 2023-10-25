@@ -1324,14 +1324,19 @@ function runFormWidgetLoader(partnerSiteConfig) {
         console.log('Positions before ... currentWidgetPositionY', currentWidgetPositionY)
         console.log('Positions before ... scrollableAncestorContainer.scrollTop', scrollableAncestorContainer.scrollTop)
         console.log('Positions before ... yOffsetForVerticalCentering', yOffsetForVerticalCentering)
-        setTimeout(() => {if (!window.autoScrollDone) { scrollableAncestorContainer.scroll({
-          top:
-            (currentWidgetPositionY +
-            scrollableAncestorContainer.scrollTop -
-            yOffsetForVerticalCentering),
-          behavior: 'smooth',
-        })}}, 500);
-window.autoScrollDone = true
+        setTimeout(() => {
+          if (!window.autoScrollDone) {
+            scrollableAncestorContainer.scroll({
+              top:
+                (currentWidgetPositionY +
+                scrollableAncestorContainer.scrollTop -
+                yOffsetForVerticalCentering),
+              behavior: 'smooth',
+            });
+          }
+          window.autoScrollDone = true;
+        }, 500);
+
         setTimeout(() => {
           console.log('Positions after ... currentWidgetPositionY', formIframe.getBoundingClientRect().y)
           console.log('Positions after ... scrollableAncestorContainer.scrollTop', scrollableAncestorContainer.scrollTop)

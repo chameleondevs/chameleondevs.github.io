@@ -6,7 +6,7 @@
  */
 
 // FEATURES
-const APP_FEATURES = ['persistent_keyboard'];
+const APP_FEATURES = ['newsletter'];
 const FORM_LOADER_ONLY_FEATURES = ['canary'];
 
 // HEIGHT
@@ -320,11 +320,19 @@ function runFormWidgetLoader(partnerSiteConfig) {
     // For redirected optimizely variants document.referrer may end up recording the non variant url instead of the
     // referrer. Therefore we should use optimizely tooling to access the original parent. See
     // https://support.optimizely.com/hc/en-us/articles/4410283531021-Redirect-experiments-Test-two-URLs-in-Optimizely#h_01H8YWYSFGYX49BHA0A32CFWJS
-    const preOptimizelyRedirectReferrer = window.optimizelyEdge?.get ? window.optimizelyEdge
-      ?.get('state')
-      ?.getRedirectInfo()?.referrer : undefined;
+    if (window.optimizelyEdge) {
+      if (window.optimizelyEdge.get) {
+        const referrer = window.optimizelyEdge
+          ?.get('state')
+          ?.getRedirectInfo()?.referrer;
 
-    return preOptimizelyRedirectReferrer || document.referrer;
+        if (referrer) {
+          return referrer;
+        }
+      }
+    }
+
+    return document.referrer;
   }
 
   function getCookieValue(name) {
@@ -439,13 +447,13 @@ function runFormWidgetLoader(partnerSiteConfig) {
   }
 
   function getIframeErrorSourceUrl(inputParameters) {
-    if (inputParameters.env === 'dev') {
+    if (inputParameters?.env === 'dev') {
       return 'http://chameleon.localhost:2000/formLoaderError';
     }
 
     const envAndDomain = sanitiseEnvironmentAndDomain(
-      inputParameters.env,
-      inputParameters.domain
+      inputParameters?.env,
+      inputParameters?.domain
     );
 
     return `https://chameleon-frontend-${envAndDomain}.mvfglobal.com/formLoaderError`;
@@ -465,7 +473,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
     const initialIframeAttributes = {
       id: uniqueId,
       width: '100%',
-      style: `overflow: hidden; border: 0; transition: 110ms ease height; min-width: 300px; height: 250px; max-width: 800px;`,
+      style: `overflow: hidden; border: 0; transition: 110ms ease height; min-width: 300px; height: ${MINIMUM_HEIGHT}px; max-width: 800px;`,
       loading: 'lazy',
       sandbox: `${originSetting}allow-forms allow-modals allow-popups allow-scripts allow-top-navigation allow-presentation`,
       title: 'MVF GLOBAL WEBFORM EMBED',
@@ -475,8 +483,8 @@ function runFormWidgetLoader(partnerSiteConfig) {
     const formIframe = document.createElement('iframe');
 
     let parentContainerOfIframeWidget = document.createElement('div');
-    if (inputParameters.containerId) {
-      const container = document.getElementById(inputParameters.containerId);
+    if (inputParameters?.containerId) {
+      const container = document.getElementById(inputParameters?.containerId);
 
       if (container) {
         parentContainerOfIframeWidget = container;
@@ -553,6 +561,10 @@ function runFormWidgetLoader(partnerSiteConfig) {
   }
 
   function boundedHeight(height) {
+    if (!height) {
+      return MINIMUM_HEIGHT;
+    }
+
     return Math.min(Math.max(height, MINIMUM_HEIGHT), MAXIMUM_HEIGHT);
   }
 
@@ -607,6 +619,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
         if (
           !validationDetails.validationFunction(testSettings[testSettingKey])
         ) {
+          // TODO probably want to stringify the testSettings[testSettingKey] as it could be an object
           errors.push(
             `Invalid data type for the value of nested key-value pair: ${validationDetails.errorMessage}`
           );
@@ -855,7 +868,7 @@ function runFormWidgetLoader(partnerSiteConfig) {
     window.__private__.autoZoom = { isSetupComplete: false };
   }
 
-  const minimumWidgetHeight = partnerSiteConfig.height
+  const minimumWidgetHeight = partnerSiteConfig?.height
     ? `${boundedHeight(partnerSiteConfig.height)}px`
     : `${MINIMUM_HEIGHT}px`;
   const maximumWidgetHeight = '950px';
@@ -1262,7 +1275,6 @@ function runFormWidgetLoader(partnerSiteConfig) {
             ancestorIsWiderThanZero
           ) {
             // Return identified custom ancestor scroll container
-            console.log("MVF Form Loader Info - Custom scroll container identified")
             return ancestor;
           }
           ancestor = ancestor.parentNode;
@@ -1357,17 +1369,11 @@ function runFormWidgetLoader(partnerSiteConfig) {
         : defaultResizeDuration;
       parentContainerOfIframeWidget.addEventListener('transitionstart', () => {
         if (!window.__private__.isAutoScrollInitiated) {
-          setTimeout(autoScrollWidget, delayUntilWidgetResizeIsDone)
+          setTimeout(autoScrollWidget, delayUntilWidgetResizeIsDone);
         }
       });
     }
   }
-
-  //
-  // Step 1 of 4 - Validate argument object (keys and data types of all values)
-  //
-  const sanitisedPartnerSiteConfigFields =
-    getUpdatedPartnerSiteConfigFields(partnerSiteConfig);
 
   // Google accepted font mapping to font family string
   const fontMappings = {
@@ -1427,69 +1433,72 @@ function runFormWidgetLoader(partnerSiteConfig) {
     return acceptedFonts.indexOf(font.toLowerCase().replace(/\s+/g, '')) !== -1;
   }
 
-  if (validateInputArgument(sanitisedPartnerSiteConfigFields)) {
-    //
-    // Step 2 of 4 - Construct the iFrame and mount it to the page
-    //
-    const themeName = sanitiseThemeName(
-      sanitisedPartnerSiteConfigFields.themeName
-    );
-    let borderStyleSettings;
-    if (themeName !== 'gowizard') {
-      borderStyleSettings =
-        sanitisedPartnerSiteConfigFields.borderEnabled ||
-        sanitisedPartnerSiteConfigFields.borderEnabled === undefined
-          ? 'box-shadow: rgba(45, 51, 80, 0.3) 1px 3px 10px 1px; border-radius: 6px; border-style: none;'
-          : 'border-radius: inherit; border-style: none;';
-    } else {
-      borderStyleSettings =
-        sanitisedPartnerSiteConfigFields.borderEnabled ||
-        sanitisedPartnerSiteConfigFields.borderEnabled === undefined
-          ? 'border-radius: 13px; border-style: none;'
-          : 'border: none;';
-    }
+  const buildWidgetInfoObject = (sanitisedPartnerSiteConfigFields) => {
+    if (validateInputArgument(sanitisedPartnerSiteConfigFields)) {
+      //
+      // Step 2 of 4 - Construct the iFrame and mount it to the page
+      //
+      const themeName = sanitiseThemeName(
+        sanitisedPartnerSiteConfigFields.themeName
+      );
+      let borderStyleSettings;
+      if (themeName !== 'gowizard') {
+        borderStyleSettings =
+          sanitisedPartnerSiteConfigFields.borderEnabled ||
+          sanitisedPartnerSiteConfigFields.borderEnabled === undefined
+            ? 'box-shadow: rgba(45, 51, 80, 0.3) 1px 3px 10px 1px; border-radius: 6px; border-style: none;'
+            : 'border-radius: inherit; border-style: none;';
+      } else {
+        borderStyleSettings =
+          sanitisedPartnerSiteConfigFields.borderEnabled ||
+          sanitisedPartnerSiteConfigFields.borderEnabled === undefined
+            ? 'border-radius: 13px; border-style: none;'
+            : 'border: none;';
+      }
 
-    const heightStyleSettings = sanitisedPartnerSiteConfigFields.height
-      ? `height: ${boundedHeight(sanitisedPartnerSiteConfigFields.height)}px;`
-      : `height: ${DEFAULT_HEIGHT}px;`;
-    const maxWidthStyleSettings = sanitisedPartnerSiteConfigFields.maxWidth
-      ? `max-width: ${sanitisedPartnerSiteConfigFields.maxWidth}px;`
-      : 'max-width: 800px;';
+      const heightStyleSettings = sanitisedPartnerSiteConfigFields.height
+        ? `height: ${boundedHeight(sanitisedPartnerSiteConfigFields.height)}px;`
+        : `height: ${DEFAULT_HEIGHT}px;`;
+      const maxWidthStyleSettings = sanitisedPartnerSiteConfigFields.maxWidth
+        ? `max-width: ${sanitisedPartnerSiteConfigFields.maxWidth}px;`
+        : 'max-width: 800px;';
 
-    const uniqueId = getUniqueId();
+      const uniqueId = getUniqueId();
 
-    // If the eventTranslation layer is present add its functionality to the input provided event handlers.
-    if (window.chameleon && window.chameleon.mvfGtmTranslationLayer) {
-      sanitisedPartnerSiteConfigFields.eventHandlers =
-        window.chameleon.mvfGtmTranslationLayer.addTranslationLayer({
-          iFrameId: uniqueId,
-          widgetLabel: sanitisedPartnerSiteConfigFields.widgetLabel,
-          eventHandlers: sanitisedPartnerSiteConfigFields.eventHandlers,
-        });
-    }
+      // If the eventTranslation layer is present add its functionality to the input provided event handlers.
+      if (window.chameleon && window.chameleon.mvfGtmTranslationLayer) {
+        // eslint-disable-next-line no-param-reassign
+        sanitisedPartnerSiteConfigFields.eventHandlers =
+          window.chameleon.mvfGtmTranslationLayer.addTranslationLayer({
+            iFrameId: uniqueId,
+            widgetLabel: sanitisedPartnerSiteConfigFields.widgetLabel,
+            eventHandlers: sanitisedPartnerSiteConfigFields.eventHandlers,
+          });
+      }
 
-    const resizeDuration = '500ms';
-    const variableHeightTransitionStyle = `transition: ${resizeDuration} ease height;`;
-    /* NOTE: In order to ensure a widget resize that is synchronised with the page transition,
-     *       keep the transition duration value of variableHeightTransitionStyle in sync with the app value
-     *       'transitionContainer.style.animationDuration' in the activateSynchronisedEnterAnimation function
-     *       in src/Components/Transition/transition.helpers.js. Refer to its comment at the top.
-     */
-    const isLogRocketSessionRecordingInUse =
-      window.LogRocket && !!document.getElementById('mvf-chameleon-logrocket');
-    const originSetting =
-      isLogRocketSessionRecordingInUse === true ? 'allow-same-origin ' : '';
-    const initialIframeAttributes = {
-      id: uniqueId,
-      width: '100%',
-      style: `overflow: hidden; ${variableHeightTransitionStyle} min-width: 300px;${borderStyleSettings}${heightStyleSettings}${maxWidthStyleSettings}`,
-      loading:
-        'lazy' /*  Supported by EDGE 79+ & Chrome 77+, not supported on IE,
+      const resizeDuration = '500ms';
+      const variableHeightTransitionStyle = `transition: ${resizeDuration} ease height;`;
+      /* NOTE: In order to ensure a widget resize that is synchronised with the page transition,
+       *       keep the transition duration value of variableHeightTransitionStyle in sync with the app value
+       *       'transitionContainer.style.animationDuration' in the activateSynchronisedEnterAnimation function
+       *       in src/Components/Transition/transition.helpers.js. Refer to its comment at the top.
+       */
+      const isLogRocketSessionRecordingInUse =
+        window.LogRocket &&
+        !!document.getElementById('mvf-chameleon-logrocket');
+      const originSetting =
+        isLogRocketSessionRecordingInUse === true ? 'allow-same-origin ' : '';
+      const initialIframeAttributes = {
+        id: uniqueId,
+        width: '100%',
+        style: `overflow: hidden; ${variableHeightTransitionStyle} min-width: 300px;${borderStyleSettings}${heightStyleSettings}${maxWidthStyleSettings}`,
+        loading:
+          'lazy' /*  Supported by EDGE 79+ & Chrome 77+, not supported on IE,
                              Firefox or Safari (to be supported by Safari in future,
                              see Safari Technology Preview)). Workaround is in place.
                           */,
-      sandbox: `${originSetting}allow-forms allow-modals allow-popups allow-scripts allow-top-navigation allow-presentation`,
-      /* Used for security (supported by IE10+ and all other main browsers)
+        sandbox: `${originSetting}allow-forms allow-modals allow-popups allow-scripts allow-top-navigation allow-presentation`,
+        /* Used for security (supported by IE10+ and all other main browsers)
          "If absolutely required, you can add permissions back one by one (inside
          the sandbox="" attribute value) - see the sandbox reference entry
          (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe#attr-sandbox)
@@ -1500,652 +1509,677 @@ function runFormWidgetLoader(partnerSiteConfig) {
          sandboxing altogether."
          Source: https://developer.mozilla.org/en-US/docs/Learn/HTML/Multimedia_and_embedding/Other_embedding_technologies
       */
-      title: 'MVF GLOBAL WEBFORM EMBED',
-    };
-    window.__private__.variableHeightTransitionStyle =
-      variableHeightTransitionStyle;
-    formWidgetInfoObject.iFrameId = initialIframeAttributes.id;
-    if (window.__private__) {
-      window.__private__.paging[initialIframeAttributes.id] = {
-        currentPage: 1,
-        previousPage: undefined,
+        title: 'MVF GLOBAL WEBFORM EMBED',
       };
-    }
-
-    const iFrameSourceUrl = getIframeSourceUrl(
-      sanitisedPartnerSiteConfigFields,
-      window.chameleonTestSettings,
-      themeName,
-      formWidgetInfoObject.iFrameId
-    );
-
-    const formIframe = document.createElement('iframe');
-    let parentContainerOfIframeWidget;
-    if (sanitisedPartnerSiteConfigFields.containerId) {
-      parentContainerOfIframeWidget = document.getElementById(
-        sanitisedPartnerSiteConfigFields.containerId
-      );
-
-      if (
-        parentContainerOfIframeWidget.style.height &&
-        parseInt(parentContainerOfIframeWidget.style.height, 10) <
-          parseInt(minimumWidgetHeight, 10)
-      ) {
-        parentContainerOfIframeWidget.style.height = minimumWidgetHeight;
+      window.__private__.variableHeightTransitionStyle =
+        variableHeightTransitionStyle;
+      formWidgetInfoObject.iFrameId = initialIframeAttributes.id;
+      if (window.__private__) {
+        window.__private__.paging[initialIframeAttributes.id] = {
+          currentPage: 1,
+          previousPage: undefined,
+        };
       }
 
-      // Set the widget resize transition style to a smooth ease animation
-      parentContainerOfIframeWidget.style.transition = `${resizeDuration} ease height;`;
-      if (
-        parentContainerOfIframeWidget.style.transition !==
-        `${resizeDuration} ease height`
-      ) {
-        // NOTE: The transition style of the external div may not be directly settable/overwritable
-        const widgetResizeStyle =
-          document.createTextNode(`#${sanitisedPartnerSiteConfigFields.containerId} {
+      const iFrameSourceUrl = getIframeSourceUrl(
+        sanitisedPartnerSiteConfigFields,
+        window.chameleonTestSettings,
+        themeName,
+        formWidgetInfoObject.iFrameId
+      );
+
+      const formIframe = document.createElement('iframe');
+      let parentContainerOfIframeWidget;
+      if (sanitisedPartnerSiteConfigFields.containerId) {
+        parentContainerOfIframeWidget = document.getElementById(
+          sanitisedPartnerSiteConfigFields.containerId
+        );
+
+        if (
+          parentContainerOfIframeWidget.style.height &&
+          parseInt(parentContainerOfIframeWidget.style.height, 10) <
+            parseInt(minimumWidgetHeight, 10)
+        ) {
+          parentContainerOfIframeWidget.style.height = minimumWidgetHeight;
+        }
+
+        // Set the widget resize transition style to a smooth ease animation
+        parentContainerOfIframeWidget.style.transition = `${resizeDuration} ease height;`;
+        if (
+          parentContainerOfIframeWidget.style.transition !==
+          `${resizeDuration} ease height`
+        ) {
+          // NOTE: The transition style of the external div may not be directly settable/overwritable
+          const widgetResizeStyle =
+            document.createTextNode(`#${sanitisedPartnerSiteConfigFields.containerId} {
           transition: ${resizeDuration} ease height;
         }`);
-        const widgetResizeStyleSheet = document.createElement('style');
-        widgetResizeStyleSheet.setAttribute('type', 'text/css');
-        widgetResizeStyleSheet.appendChild(widgetResizeStyle);
-        if (document.getElementsByTagName('head')[0]) {
-          document
-            .getElementsByTagName('head')[0]
-            .appendChild(widgetResizeStyleSheet);
+          const widgetResizeStyleSheet = document.createElement('style');
+          widgetResizeStyleSheet.setAttribute('type', 'text/css');
+          widgetResizeStyleSheet.appendChild(widgetResizeStyle);
+          if (document.getElementsByTagName('head')[0]) {
+            document
+              .getElementsByTagName('head')[0]
+              .appendChild(widgetResizeStyleSheet);
+          }
         }
-      }
-    } else {
-      // Create a DOM wrapper element and mount it right above the passed in snippet script tag
-      parentContainerOfIframeWidget = document.createElement('div');
-      const horizontalCentering = ' margin: auto;';
-      let themeBackgroundColor;
-      if (themeName === 'custom') {
-        themeBackgroundColor = 'transparent';
-      } else if (themeName === 'gowizard') {
-        themeBackgroundColor = 'rgb(255, 255, 255)';
       } else {
-        themeBackgroundColor = 'rgb(253, 253, 253)';
-      }
-
-      const parentContainerBackgroundColour =
-        sanitisedPartnerSiteConfigFields.paletteOverrides &&
-        sanitisedPartnerSiteConfigFields.paletteOverrides.widgetBackgroundColor
-          ? sanitisedPartnerSiteConfigFields.paletteOverrides
-              .widgetBackgroundColor
-          : themeBackgroundColor;
-      const opacityAndBackgroundSettings = `opacity: 1; background: ${parentContainerBackgroundColour};`;
-      let parentBorderStyleSettings;
-      if (themeName !== 'gowizard') {
-        parentBorderStyleSettings =
-          sanitisedPartnerSiteConfigFields.borderEnabled ||
-          sanitisedPartnerSiteConfigFields.borderEnabled === undefined
-            ? 'border-radius: 6px; border-style: none;'
-            : 'border: none;';
-      } else {
-        parentBorderStyleSettings =
-          sanitisedPartnerSiteConfigFields.borderEnabled ||
-          sanitisedPartnerSiteConfigFields.borderEnabled === undefined
-            ? 'box-shadow: rgba(170, 144, 211, 0.75) 0.75rem 0.75rem 0px; border-radius: 13px; border-style: none; border: 2px solid rgb(86, 33, 137); box-sizing: content-box; margin: auto; overflow: hidden;'
-            : 'border: none;';
-      }
-      parentContainerOfIframeWidget.setAttribute(
-        'style',
-        opacityAndBackgroundSettings +
-          heightStyleSettings +
-          maxWidthStyleSettings +
-          horizontalCentering +
-          parentBorderStyleSettings +
-          variableHeightTransitionStyle
-      );
-
-      const currentSnippetScriptElement = document.currentScript; // Not supported on IE (a small price to pay)
-      const parentNodeOfSnippetScript = currentSnippetScriptElement.parentNode;
-      parentNodeOfSnippetScript.insertBefore(
-        parentContainerOfIframeWidget,
-        currentSnippetScriptElement
-      );
-    }
-
-    if (sanitisedPartnerSiteConfigFields.dynamicHeight) {
-      if (sanitisedPartnerSiteConfigFields.autoScroll) {
-        repositionWidgetWithAutoScroll(
-          formIframe,
-          parentContainerOfIframeWidget
-        );
-        // NOTE: The parentContainer needs to be explicitly passed in because it still is a separate div and not yet linked as an HTML parent to formIframe
-      }
-    }
-
-    const loadingBar = createAnimatedLoadingBar(
-      parentContainerOfIframeWidget,
-      extractColourFromTheme(sanitisedPartnerSiteConfigFields),
-      sanitisedPartnerSiteConfigFields
-    );
-    formIframe.setAttribute('position', 'relative');
-    formIframe.setAttribute('z-index', '9998');
-
-    if (sanitisedPartnerSiteConfigFields.belowFold === false) {
-      formIframe.src = iFrameSourceUrl;
-    }
-    // Assigning the HTML attributes as a 2nd arg of createElement is not
-    // supported by IE. Hence, setAttribute() is used
-    Object.keys(initialIframeAttributes).forEach((attribute) => {
-      const value = initialIframeAttributes[attribute];
-      formIframe.setAttribute(attribute, value);
-    });
-
-    const parentUrlParams = extractParamsFromParentUrl();
-    if (!window.chameleon) {
-      window.chameleon = {};
-    }
-    window.chameleon.shouldLogEventsToConsole =
-      parentUrlParams && parentUrlParams.eventLog === 'true';
-    const pageUrl = window.location.href;
-
-    const sendInitialMessagesToChameleon = () => {
-      // Send the partner page url, campaignId, widgetLabel, headerEnabled and paletteOverrides state down to Chameleon
-      if (isLogRocketSessionRecordingInUse) {
-        formIframe.contentWindow.postMessage(
-          `isLogRocketSessionRecordingRequired:true`,
-          '*'
-        );
-      }
-      formIframe.contentWindow.postMessage(`pageUrl:${pageUrl}`, '*');
-      const referrerUrl = getReferrer();
-      if (referrerUrl) {
-        formIframe.contentWindow.postMessage(`referrerUrl:${referrerUrl}`, '*');
-      }
-
-      if (sanitisedPartnerSiteConfigFields.campaignId) {
-        formIframe.contentWindow.postMessage(
-          `campaignId:${sanitisedPartnerSiteConfigFields.campaignId}`,
-          '*'
-        );
-      }
-
-      // Inform Chameleon about the widgetLabel
-      if (
-        Object.prototype.hasOwnProperty.call(
-          sanitisedPartnerSiteConfigFields,
-          'widgetLabel'
-        )
-      ) {
-        formIframe.contentWindow.postMessage(
-          `widgetLabel:${sanitisedPartnerSiteConfigFields.widgetLabel}`,
-          '*'
-        );
-      }
-      // Inform Chameleon about the iFrameId of the widget (essential to help correlate future events to the right iFrame)
-      if (formWidgetInfoObject.iFrameId) {
-        formIframe.contentWindow.postMessage(
-          `iFrameId:${formWidgetInfoObject.iFrameId}`,
-          '*'
-        );
-      }
-      if (
-        Object.prototype.hasOwnProperty.call(
-          sanitisedPartnerSiteConfigFields,
-          'useCidFromURL'
-        )
-      ) {
-        formIframe.contentWindow.postMessage(
-          `useCidFromURL:${sanitisedPartnerSiteConfigFields.useCidFromURL}`,
-          '*'
-        );
-      }
-      if (sanitisedPartnerSiteConfigFields.dynamicHeight) {
-        const defaultResizeDuration = 500;
-        const numericWidgetResizeDuration =
-          window.__private__.variableHeightTransitionStyle.match(/\d+/); // get digits from animation
-        const widgetResizeDuration = numericWidgetResizeDuration
-          ? parseInt(numericWidgetResizeDuration[0], 10)
-          : defaultResizeDuration;
-
-        formIframe.contentWindow.postMessage(
-          `widgetResizeDuration:${widgetResizeDuration}`,
-          '*'
-        );
-        formIframe.contentWindow.postMessage(
-          `dynamicHeight:${sanitisedPartnerSiteConfigFields.dynamicHeight}`,
-          '*'
-        );
-        formIframe.contentWindow.postMessage(
-          `minimumWidgetHeight:${parseInt(minimumWidgetHeight, 10)}`,
-          '*'
-        );
-        formIframe.contentWindow.postMessage(
-          `maximumWidgetHeight:${parseInt(maximumWidgetHeight, 10)}`,
-          '*'
-        );
-        if (window.ResizeObserver) {
-          // Set up a dimensions listener on the iframe to notify the React app of any changes in width
-          new ResizeObserver(() => {
-            formIframe.contentWindow.postMessage(
-              'recalculateRequiredWidgetHeightDueToWidthChange',
-              '*'
-            );
-          }).observe(formIframe); // listens efficiently to widget dimension changes (width is what we're interested in)
+        // Create a DOM wrapper element and mount it right above the passed in snippet script tag
+        parentContainerOfIframeWidget = document.createElement('div');
+        const horizontalCentering = ' margin: auto;';
+        let themeBackgroundColor;
+        if (themeName === 'custom') {
+          themeBackgroundColor = 'transparent';
+        } else if (themeName === 'gowizard') {
+          themeBackgroundColor = 'rgb(255, 255, 255)';
         } else {
-          // This workaround (for unsupported browsers) is not exactly a polyfill but it successfully detects
-          // widget width changes whenever they are caused by mobile screen orientation changes or by window resizing
-          // Expect this code to kick in for browsers excluded here: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver#browser_compatibility
-          let formIframeWidth = formIframe.clientWidth;
-          window.addEventListener('orientationchange', () => {
-            if (formIframe.clientWidth !== formIframeWidth) {
-              formIframeWidth = formIframe.clientWidth;
-              formIframe.contentWindow.postMessage(
-                'recalculateRequiredWidgetHeightDueToWidthChange',
-                '*'
-              );
-            }
-          });
-          window.addEventListener('resize', () => {
-            if (formIframe.clientWidth !== formIframeWidth) {
-              formIframeWidth = formIframe.clientWidth;
-              formIframe.contentWindow.postMessage(
-                'recalculateRequiredWidgetHeightDueToWidthChange',
-                '*'
-              );
-            }
-          });
+          themeBackgroundColor = 'rgb(253, 253, 253)';
+        }
+
+        const parentContainerBackgroundColour =
+          sanitisedPartnerSiteConfigFields.paletteOverrides &&
+          sanitisedPartnerSiteConfigFields.paletteOverrides
+            .widgetBackgroundColor
+            ? sanitisedPartnerSiteConfigFields.paletteOverrides
+                .widgetBackgroundColor
+            : themeBackgroundColor;
+        const opacityAndBackgroundSettings = `opacity: 1; background: ${parentContainerBackgroundColour};`;
+        let parentBorderStyleSettings;
+        if (themeName !== 'gowizard') {
+          parentBorderStyleSettings =
+            sanitisedPartnerSiteConfigFields.borderEnabled ||
+            sanitisedPartnerSiteConfigFields.borderEnabled === undefined
+              ? 'border-radius: 6px; border-style: none;'
+              : 'border: none;';
+        } else {
+          parentBorderStyleSettings =
+            sanitisedPartnerSiteConfigFields.borderEnabled ||
+            sanitisedPartnerSiteConfigFields.borderEnabled === undefined
+              ? 'box-shadow: rgba(170, 144, 211, 0.75) 0.75rem 0.75rem 0px; border-radius: 13px; border-style: none; border: 2px solid rgb(86, 33, 137); box-sizing: content-box; margin: auto; overflow: hidden;'
+              : 'border: none;';
+        }
+        parentContainerOfIframeWidget.setAttribute(
+          'style',
+          opacityAndBackgroundSettings +
+            heightStyleSettings +
+            maxWidthStyleSettings +
+            horizontalCentering +
+            parentBorderStyleSettings +
+            variableHeightTransitionStyle
+        );
+
+        const currentSnippetScriptElement = document.currentScript; // Not supported on IE (a small price to pay)
+        const parentNodeOfSnippetScript =
+          currentSnippetScriptElement.parentNode;
+        parentNodeOfSnippetScript.insertBefore(
+          parentContainerOfIframeWidget,
+          currentSnippetScriptElement
+        );
+      }
+
+      if (sanitisedPartnerSiteConfigFields.dynamicHeight) {
+        if (sanitisedPartnerSiteConfigFields.autoScroll) {
+          repositionWidgetWithAutoScroll(
+            formIframe,
+            parentContainerOfIframeWidget
+          );
+          // NOTE: The parentContainer needs to be explicitly passed in because it still is a separate div and not yet linked as an HTML parent to formIframe
         }
       }
-      // Inform Chameleon about testMode
-      if (
-        Object.prototype.hasOwnProperty.call(
-          sanitisedPartnerSiteConfigFields,
-          'testMode'
-        )
-      ) {
-        formIframe.contentWindow.postMessage(
-          `testMode:${sanitisedPartnerSiteConfigFields.testMode}`,
-          '*'
-        );
+
+      const loadingBar = createAnimatedLoadingBar(
+        parentContainerOfIframeWidget,
+        extractColourFromTheme(sanitisedPartnerSiteConfigFields),
+        sanitisedPartnerSiteConfigFields
+      );
+      formIframe.setAttribute('position', 'relative');
+      formIframe.setAttribute('z-index', '9998');
+
+      if (sanitisedPartnerSiteConfigFields.belowFold === false) {
+        formIframe.src = iFrameSourceUrl;
       }
-      // Inform Chameleon about whether to show or hide the header
-      if (
-        Object.prototype.hasOwnProperty.call(
-          sanitisedPartnerSiteConfigFields,
-          'headerEnabled'
-        )
-      ) {
-        formIframe.contentWindow.postMessage(
-          `headerEnabled:${sanitisedPartnerSiteConfigFields.headerEnabled}`,
-          '*'
-        );
+      // Assigning the HTML attributes as a 2nd arg of createElement is not
+      // supported by IE. Hence, setAttribute() is used
+      Object.keys(initialIframeAttributes).forEach((attribute) => {
+        const value = initialIframeAttributes[attribute];
+        formIframe.setAttribute(attribute, value);
+      });
+
+      const parentUrlParams = extractParamsFromParentUrl();
+      if (!window.chameleon) {
+        window.chameleon = {};
       }
-      // Inform Chameleon about the position of the consent statement
-      if (
-        Object.prototype.hasOwnProperty.call(
-          sanitisedPartnerSiteConfigFields,
-          'isConsentStatementAboveNavigation'
-        )
-      ) {
-        formIframe.contentWindow.postMessage(
-          `isConsentStatementAboveNavigation:${sanitisedPartnerSiteConfigFields.isConsentStatementAboveNavigation}`,
-          '*'
-        );
-      }
-      // Inform Chameleon about the optional autoScroll value of the widget
-      if (
-        Object.prototype.hasOwnProperty.call(
-          sanitisedPartnerSiteConfigFields,
-          'autoScroll'
-        )
-      ) {
-        formIframe.contentWindow.postMessage(
-          `autoScroll:${sanitisedPartnerSiteConfigFields.autoScroll}`,
-          '*'
-        );
-      }
-      // Inform Chameleon about whether to override any palette values
-      if (
-        Object.prototype.hasOwnProperty.call(
-          sanitisedPartnerSiteConfigFields,
-          'paletteOverrides'
-        )
-      ) {
-        const paletteOverridesJSON = JSON.stringify(
-          sanitisedPartnerSiteConfigFields.paletteOverrides
-        );
-        formIframe.contentWindow.postMessage(
-          `paletteOverrides:${paletteOverridesJSON}`,
-          '*'
-        );
-      }
-      // Inform Chameleon about whether to override the default font
-      if (
-        Object.prototype.hasOwnProperty.call(
-          sanitisedPartnerSiteConfigFields,
-          'fontOverride'
-        )
-      ) {
-        const isFontValid = validateFontOverride(
-          sanitisedPartnerSiteConfigFields.fontOverride
-        );
-        if (isFontValid) {
-          const fontObject =
-            fontMappings[
-              sanitisedPartnerSiteConfigFields.fontOverride
-                .toLowerCase()
-                .replace(/\s+/g, '')
-            ];
-          const fontOverrideJSON = JSON.stringify(fontObject);
+      window.chameleon.shouldLogEventsToConsole =
+        parentUrlParams && parentUrlParams.eventLog === 'true';
+      const pageUrl = window.location.href;
+
+      const sendInitialMessagesToChameleon = () => {
+        // Send the partner page url, campaignId, widgetLabel, headerEnabled and paletteOverrides state down to Chameleon
+        if (isLogRocketSessionRecordingInUse) {
           formIframe.contentWindow.postMessage(
-            `fontOverride:${fontOverrideJSON}`,
+            `isLogRocketSessionRecordingRequired:true`,
             '*'
           );
-        } else {
-          console.info(
-            'MVF Form Loader Error - invalid or unsupported font selected'
+        }
+        formIframe.contentWindow.postMessage(`pageUrl:${pageUrl}`, '*');
+        const referrerUrl = getReferrer();
+        if (referrerUrl) {
+          formIframe.contentWindow.postMessage(
+            `referrerUrl:${referrerUrl}`,
+            '*'
           );
         }
-      }
-      // Inform Chameleon not to expect further render-critical messages as part of the initial load
-      formIframe.contentWindow.postMessage(
-        'allInitialMessagesArrived:true',
-        '*'
-      );
 
-      if (sanitisedPartnerSiteConfigFields.eventHandlers) {
-        const registeredEventHandlers = Object.getOwnPropertyNames(
-          sanitisedPartnerSiteConfigFields.eventHandlers
-        );
+        if (sanitisedPartnerSiteConfigFields.campaignId) {
+          formIframe.contentWindow.postMessage(
+            `campaignId:${sanitisedPartnerSiteConfigFields.campaignId}`,
+            '*'
+          );
+        }
+
+        // Inform Chameleon about the widgetLabel
+        if (
+          Object.prototype.hasOwnProperty.call(
+            sanitisedPartnerSiteConfigFields,
+            'widgetLabel'
+          )
+        ) {
+          formIframe.contentWindow.postMessage(
+            `widgetLabel:${sanitisedPartnerSiteConfigFields.widgetLabel}`,
+            '*'
+          );
+        }
+        // Inform Chameleon about the iFrameId of the widget (essential to help correlate future events to the right iFrame)
+        if (formWidgetInfoObject.iFrameId) {
+          formIframe.contentWindow.postMessage(
+            `iFrameId:${formWidgetInfoObject.iFrameId}`,
+            '*'
+          );
+        }
+        if (
+          Object.prototype.hasOwnProperty.call(
+            sanitisedPartnerSiteConfigFields,
+            'useCidFromURL'
+          )
+        ) {
+          formIframe.contentWindow.postMessage(
+            `useCidFromURL:${sanitisedPartnerSiteConfigFields.useCidFromURL}`,
+            '*'
+          );
+        }
+        if (sanitisedPartnerSiteConfigFields.dynamicHeight) {
+          const defaultResizeDuration = 500;
+          const numericWidgetResizeDuration =
+            window.__private__.variableHeightTransitionStyle.match(/\d+/); // get digits from animation
+          const widgetResizeDuration = numericWidgetResizeDuration
+            ? parseInt(numericWidgetResizeDuration[0], 10)
+            : defaultResizeDuration;
+
+          formIframe.contentWindow.postMessage(
+            `widgetResizeDuration:${widgetResizeDuration}`,
+            '*'
+          );
+          formIframe.contentWindow.postMessage(
+            `dynamicHeight:${sanitisedPartnerSiteConfigFields.dynamicHeight}`,
+            '*'
+          );
+          formIframe.contentWindow.postMessage(
+            `minimumWidgetHeight:${parseInt(minimumWidgetHeight, 10)}`,
+            '*'
+          );
+          formIframe.contentWindow.postMessage(
+            `maximumWidgetHeight:${parseInt(maximumWidgetHeight, 10)}`,
+            '*'
+          );
+          if (window.ResizeObserver) {
+            // Set up a dimensions listener on the iframe to notify the React app of any changes in width
+            new ResizeObserver(() => {
+              formIframe.contentWindow.postMessage(
+                'recalculateRequiredWidgetHeightDueToWidthChange',
+                '*'
+              );
+            }).observe(formIframe); // listens efficiently to widget dimension changes (width is what we're interested in)
+          } else {
+            // This workaround (for unsupported browsers) is not exactly a polyfill but it successfully detects
+            // widget width changes whenever they are caused by mobile screen orientation changes or by window resizing
+            // Expect this code to kick in for browsers excluded here: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver#browser_compatibility
+            let formIframeWidth = formIframe.clientWidth;
+            window.addEventListener('orientationchange', () => {
+              if (formIframe.clientWidth !== formIframeWidth) {
+                formIframeWidth = formIframe.clientWidth;
+                formIframe.contentWindow.postMessage(
+                  'recalculateRequiredWidgetHeightDueToWidthChange',
+                  '*'
+                );
+              }
+            });
+            window.addEventListener('resize', () => {
+              if (formIframe.clientWidth !== formIframeWidth) {
+                formIframeWidth = formIframe.clientWidth;
+                formIframe.contentWindow.postMessage(
+                  'recalculateRequiredWidgetHeightDueToWidthChange',
+                  '*'
+                );
+              }
+            });
+          }
+        }
+        // Inform Chameleon about testMode
+        if (
+          Object.prototype.hasOwnProperty.call(
+            sanitisedPartnerSiteConfigFields,
+            'testMode'
+          )
+        ) {
+          formIframe.contentWindow.postMessage(
+            `testMode:${sanitisedPartnerSiteConfigFields.testMode}`,
+            '*'
+          );
+        }
+        // Inform Chameleon about whether to show or hide the header
+        if (
+          Object.prototype.hasOwnProperty.call(
+            sanitisedPartnerSiteConfigFields,
+            'headerEnabled'
+          )
+        ) {
+          formIframe.contentWindow.postMessage(
+            `headerEnabled:${sanitisedPartnerSiteConfigFields.headerEnabled}`,
+            '*'
+          );
+        }
+        // Inform Chameleon about the position of the consent statement
+        if (
+          Object.prototype.hasOwnProperty.call(
+            sanitisedPartnerSiteConfigFields,
+            'isConsentStatementAboveNavigation'
+          )
+        ) {
+          formIframe.contentWindow.postMessage(
+            `isConsentStatementAboveNavigation:${sanitisedPartnerSiteConfigFields.isConsentStatementAboveNavigation}`,
+            '*'
+          );
+        }
+        // Inform Chameleon about the optional autoScroll value of the widget
+        if (
+          Object.prototype.hasOwnProperty.call(
+            sanitisedPartnerSiteConfigFields,
+            'autoScroll'
+          )
+        ) {
+          formIframe.contentWindow.postMessage(
+            `autoScroll:${sanitisedPartnerSiteConfigFields.autoScroll}`,
+            '*'
+          );
+        }
+        // Inform Chameleon about whether to override any palette values
+        if (
+          Object.prototype.hasOwnProperty.call(
+            sanitisedPartnerSiteConfigFields,
+            'paletteOverrides'
+          )
+        ) {
+          const paletteOverridesJSON = JSON.stringify(
+            sanitisedPartnerSiteConfigFields.paletteOverrides
+          );
+          formIframe.contentWindow.postMessage(
+            `paletteOverrides:${paletteOverridesJSON}`,
+            '*'
+          );
+        }
+        // Inform Chameleon about whether to override the default font
+        if (
+          Object.prototype.hasOwnProperty.call(
+            sanitisedPartnerSiteConfigFields,
+            'fontOverride'
+          )
+        ) {
+          const isFontValid = validateFontOverride(
+            sanitisedPartnerSiteConfigFields.fontOverride
+          );
+          if (isFontValid) {
+            const fontObject =
+              fontMappings[
+                sanitisedPartnerSiteConfigFields.fontOverride
+                  .toLowerCase()
+                  .replace(/\s+/g, '')
+              ];
+            const fontOverrideJSON = JSON.stringify(fontObject);
+            formIframe.contentWindow.postMessage(
+              `fontOverride:${fontOverrideJSON}`,
+              '*'
+            );
+          } else {
+            console.info(
+              'MVF Form Loader Error - invalid or unsupported font selected'
+            );
+          }
+        }
+        // Provide public key for encrypting event information
+        if (window.chameleon && window.chameleon.mvfGtmTranslationLayer) {
+          window.chameleon.mvfGtmTranslationLayer
+            .getPublicKeyString()
+            .then((publicKeyString) => {
+              formIframe.contentWindow.postMessage(
+                `eventPublicKeyString:${publicKeyString}`,
+                '*'
+              );
+            });
+        }
+        // Inform Chameleon not to expect further render-critical messages as part of the initial load
         formIframe.contentWindow.postMessage(
-          `registeredEventHandlers:${JSON.stringify(registeredEventHandlers)}`,
+          'allInitialMessagesArrived:true',
           '*'
         );
-      }
-    };
-
-    formIframe.onload = () => {
-      // formIframe.onload fires twice to keep the customer page's PageSpeed
-      // score high (see the 'SEO' comment in the onLoadHandlerFunction).
-      // As a result, a second condition needs to be checked before considering
-      // the form widget 'loaded'.
-      if (formIframe.src) {
-        // Remove the loading bar as soon as the form widget has appeared and fully loaded
-        parentContainerOfIframeWidget.removeChild(loadingBar);
-
-        /**
-         * Send input data to the app via browser message
-         *
-         * In the case of Apple browsers we cannot send this data until we receive a message from the application - which confirms that the app is ready.
-         */
-        if (!isIOS() && !isMacOS()) {
-          if (sanitisedPartnerSiteConfigFields.env === 'dev') {
-            setTimeout(() => {
-              // In development in linux the application does not load before the messages are sent, this is not currently an issues in staging / prod
-              console.info(
-                'DEV ONLY: ARTIFICIAL DELAY for application to be ready to receive messages'
-              );
-              sendInitialMessagesToChameleon();
-            }, 2000);
-          } else {
-            sendInitialMessagesToChameleon();
-          }
-        }
 
         if (sanitisedPartnerSiteConfigFields.eventHandlers) {
-          if (sanitisedPartnerSiteConfigFields.eventHandlers.widgetVisible) {
-            addVisibilityWatcher(
-              sanitisedPartnerSiteConfigFields.eventHandlers.widgetVisible,
-              sanitisedPartnerSiteConfigFields.widgetLabel,
-              formIframe
-            );
-          }
+          const registeredEventHandlers = Object.getOwnPropertyNames(
+            sanitisedPartnerSiteConfigFields.eventHandlers
+          );
+          formIframe.contentWindow.postMessage(
+            `registeredEventHandlers:${JSON.stringify(
+              registeredEventHandlers
+            )}`,
+            '*'
+          );
         }
-      }
-    };
+      };
 
-    // Insert the iFrame of the Chameleon form widget
-    parentContainerOfIframeWidget.appendChild(loadingBar);
-    parentContainerOfIframeWidget.appendChild(formIframe);
+      formIframe.onload = () => {
+        // formIframe.onload fires twice to keep the customer page's PageSpeed
+        // score high (see the 'SEO' comment in the onLoadHandlerFunction).
+        // As a result, a second condition needs to be checked before considering
+        // the form widget 'loaded'.
+        if (formIframe.src) {
+          // Remove the loading bar as soon as the form widget has appeared and fully loaded
 
-    if (isIOS() && Array.isArray(window?.__private__?.autoZoom?.widgets)) {
-      window.__private__.autoZoom.widgets.push(formIframe);
-    }
-
-    //
-    // Step 3 of 4 - Set up event handlers (including form errors)
-    //
-
-    if (
-      window.partnerSiteConfigs &&
-      typeof window.partnerSiteConfigs === 'object' &&
-      !Array.isArray(window.partnerSiteConfigs)
-    ) {
-      // This formLoader script may run as part of a batch of invocations from
-      // multiple snippets to load multiple iFrames onto the page. Hence, when
-      // it comes to hooking up the eventListeners from any one snippet to the
-      // common global window object (and its onmessage trigger handler), each
-      // partnerSiteConfig that relates to an individual loader snippet needs to
-      // be collated into a map object that correlates iFrameId to partnerSiteConfig
-      // for the window object to be aware of and listen to in order to
-      // prevent messages from any iFrame from being ignored by the window or
-      // rather not getting passed through to the eventListeners of the
-      // partnerSiteConfig of that specific iFrame's loader snippet
-      window.partnerSiteConfigs[formWidgetInfoObject.iFrameId] =
-        sanitisedPartnerSiteConfigFields;
-    } else {
-      window.partnerSiteConfigs = {};
-      window.partnerSiteConfigs[formWidgetInfoObject.iFrameId] =
-        sanitisedPartnerSiteConfigFields;
-    }
-
-    // Handle form-related events by invoking partner's pre-specified callback logic
-    window.addEventListener('message', (event) => {
-      if (typeof event.data.startsWith === 'function') {
-        // Guard clause to prevent unrelated messages to trigger this logic (more efficient)
-        if (
-          event.data.startsWith('questionAnswered') ||
-          event.data.startsWith('pageChanged') ||
-          event.data.startsWith('finalSubmission') ||
-          event.data.startsWith('formSubmit') ||
-          event.data.startsWith('formError') ||
-          event.data.startsWith('failedForwardPageNavigation') ||
-          event.data.startsWith('resizeWidget') ||
-          event.data.startsWith('invokeAutoScroll') ||
-          event.data.startsWith('submissionStatusUpdated') ||
-          event.data.startsWith('initialWidgetInteraction') ||
-          event.data.startsWith('initialWidgetLoad') ||
-          event.data.startsWith('cookiesRequested')
-        ) {
-          const eventInfoArray = event.data.split(/:(.+)/); // splits the string on the first occurrence of the separator ':'
-          const eventType = eventInfoArray[0];
-          const eventInfoObject = JSON.parse(eventInfoArray[1]);
-          const iFrameIdOfEventOrigin = eventInfoObject.iFrameId;
-          const isSubmissionEvent =
-            event.data.startsWith('finalSubmission') ||
-            event.data.startsWith('formSubmit');
-
-          if (eventInfoObject.iFrameId !== formWidgetInfoObject.iFrameId) {
-            return;
+          if (parentContainerOfIframeWidget.contains(loadingBar)) {
+            parentContainerOfIframeWidget.removeChild(loadingBar);
           }
 
-          const iFrameElement = document.getElementById(iFrameIdOfEventOrigin);
-
-          if (event.data.startsWith('cookiesRequested')) {
-            // Inform Chameleon about OneTrust cookie and add handler for any cookie changes.
-            sendOneTrustCookieConsentData(iFrameElement);
-            if (window.OneTrust) {
-              sendOneTrustLocaleData(iFrameElement);
-              window.OneTrust.OnConsentChanged(() => {
-                sendOneTrustCookieConsentData(iFrameElement);
-                sendOneTrustLocaleData(iFrameElement);
-              });
-            }
-            return;
-          }
-
-          if (
-            event.data.startsWith('initialWidgetInteraction') &&
-            typeof window.chameleon?.setupBrowserIntercept === 'function'
-          ) {
-            window.chameleon.setupBrowserIntercept();
-          }
-
-          if (window.chameleon.shouldLogEventsToConsole) {
-            console.info('MVF EMBED EVENT INFO');
-            console.info('MVF EMBED EVENT Type: ', eventType);
-            console.info('MVF EMBED EVENT DETAILS: ', eventInfoObject);
-            console.info(
-              'MVF EMBED IFRAMEID OF EVENT ORIGIN: ',
-              iFrameIdOfEventOrigin
-            );
-          }
-          // Chameleon form-related user progress / error message listener to
-          // bubble either form-related user progress or interaction errors up
-          // to the partner-site by invoking their specified event response
-          // logic of their passed in callback function
-
-          const snippetSpecificConfig =
-            window.partnerSiteConfigs[iFrameIdOfEventOrigin];
-          // Any widget related event from any one iFrame gets communicated to
-          // its original loader snippet (that has the corresponding eventHandler
-          // function implemented). None of the other unrelated snippets will be
-          // notified in a multi-snippet / multi-iFrame page scenario.
-          if (
-            snippetSpecificConfig &&
-            snippetSpecificConfig.eventHandlers &&
-            snippetSpecificConfig.eventHandlers[eventType] &&
-            typeof snippetSpecificConfig.eventHandlers[eventType] ===
-              'function' &&
-            isSubmissionEvent === false
-          ) {
-            snippetSpecificConfig.eventHandlers[eventType](eventInfoObject);
-          }
-
-          // If it's a submission event, prioritise calling the formSubmit event handler if it exists
-          // If it doesn't, call the legacy finalSubmission event handler instead
-          if (
-            snippetSpecificConfig &&
-            snippetSpecificConfig.eventHandlers &&
-            isSubmissionEvent === true
-          ) {
-            if (
-              snippetSpecificConfig.eventHandlers.formSubmit &&
-              typeof snippetSpecificConfig.eventHandlers.formSubmit ===
-                'function'
-            ) {
-              snippetSpecificConfig.eventHandlers.formSubmit(eventInfoObject);
+          /**
+           * Send input data to the app via browser message
+           *
+           * In the case of Apple browsers we cannot send this data until we receive a message from the application - which confirms that the app is ready.
+           */
+          if (!isIOS() && !isMacOS()) {
+            if (sanitisedPartnerSiteConfigFields.env === 'dev') {
+              setTimeout(() => {
+                // In development in linux the application does not load before the messages are sent, this is not currently an issues in staging / prod
+                console.info(
+                  'DEV ONLY: ARTIFICIAL DELAY for application to be ready to receive messages'
+                );
+                sendInitialMessagesToChameleon();
+              }, 2000);
             } else {
-              snippetSpecificConfig.eventHandlers.finalSubmission(
-                eventInfoObject
+              sendInitialMessagesToChameleon();
+            }
+          }
+
+          if (sanitisedPartnerSiteConfigFields.eventHandlers) {
+            if (sanitisedPartnerSiteConfigFields.eventHandlers.widgetVisible) {
+              addVisibilityWatcher(
+                sanitisedPartnerSiteConfigFields.eventHandlers.widgetVisible,
+                sanitisedPartnerSiteConfigFields.widgetLabel,
+                formIframe
               );
-            }
-          }
-
-          const currentWidgetHeight = iFrameElement
-            ? window.getComputedStyle(iFrameElement, null).height
-            : '';
-          if (
-            event.data.startsWith('invokeAutoScroll') &&
-            snippetSpecificConfig &&
-            sanitisedPartnerSiteConfigFields.autoScroll
-          ) {
-            repositionWidgetWithAutoScroll(iFrameElement, undefined, true);
-          }
-
-          if (isSubmissionEvent && window.__private__?.paging) {
-            window.__private__.paging[
-              iFrameIdOfEventOrigin
-            ].formSubmitted = true;
-          }
-
-          if (
-            event.data.startsWith('pageChanged') &&
-            window.__private__?.paging
-          ) {
-            const destinationPageMatchObject = event.data.match(
-              /["|']destinationPage["|']:(\d+),/
-            );
-            const fromPageMatchObject = event.data.match(
-              /["|']fromPage["|']:(\d+),/
-            );
-            if (
-              destinationPageMatchObject &&
-              Array.isArray(destinationPageMatchObject) &&
-              typeof parseInt(destinationPageMatchObject[1], 10) === 'number'
-            ) {
-              window.__private__.paging[iFrameIdOfEventOrigin].currentPage =
-                parseInt(destinationPageMatchObject[1], 10);
-            }
-            if (
-              fromPageMatchObject &&
-              Array.isArray(fromPageMatchObject) &&
-              typeof parseInt(fromPageMatchObject[1], 10) === 'number'
-            ) {
-              window.__private__.paging[iFrameIdOfEventOrigin].previousPage =
-                parseInt(fromPageMatchObject[1], 10);
-            }
-          }
-          // Dynamic iframe height based on incoming requiredWidgetHeight data on every "resizeWidget" event
-          if (
-            iFrameIdOfEventOrigin &&
-            snippetSpecificConfig.dynamicHeight &&
-            event.data.startsWith('resizeWidget')
-          ) {
-            let newWidgetHeight = eventInfoObject.requiredWidgetHeight;
-
-            if (
-              parseInt(newWidgetHeight, 10) < parseInt(minimumWidgetHeight, 10)
-            ) {
-              newWidgetHeight = minimumWidgetHeight;
-            }
-
-            if (
-              parseInt(newWidgetHeight, 10) > parseInt(maximumWidgetHeight, 10)
-            ) {
-              newWidgetHeight = maximumWidgetHeight;
-            }
-
-            if (newWidgetHeight !== currentWidgetHeight) {
-              iFrameElement.style.height = newWidgetHeight;
-              const parentContainer = iFrameElement.parentNode;
-              parentContainer.style.height = newWidgetHeight;
             }
           }
         }
+      };
 
-        /**
-         * Chameleon will send a browserMessagesRegistered event when it's ready to receive browser messages, as we noticed issues with iOS onload event firing before Chameleon was ready, so we replay the initial messages when we receive this event to ensure Chameleon has all the required data
-         */
-        if (event.data.startsWith('browserMessagesRegistered')) {
-          if (isIOS() || isMacOS()) {
-            sendInitialMessagesToChameleon();
+      // Insert the iFrame of the Chameleon form widget
+      parentContainerOfIframeWidget.appendChild(loadingBar);
+      parentContainerOfIframeWidget.appendChild(formIframe);
 
-            // TODO not sure about this - is updateCampaignId still present
-            if (formWidgetInfoObject.campaignIdOverride) {
-              /**
-               * If we have previously received an updateCampaignId event that was not buffered, then sendInitialMessagesToChameleon would overwrite the campaign ID to be the one in this snippet and the one in the snippet would be resent
-               */
-              formWidgetInfoObject.updateCampaignId(
-                formWidgetInfoObject.campaignIdOverride
+      if (isIOS() && Array.isArray(window?.__private__?.autoZoom?.widgets)) {
+        window.__private__.autoZoom.widgets.push(formIframe);
+      }
+
+      //
+      // Step 3 of 4 - Set up event handlers (including form errors)
+      //
+
+      if (
+        window.partnerSiteConfigs &&
+        typeof window.partnerSiteConfigs === 'object' &&
+        !Array.isArray(window.partnerSiteConfigs)
+      ) {
+        // This formLoader script may run as part of a batch of invocations from
+        // multiple snippets to load multiple iFrames onto the page. Hence, when
+        // it comes to hooking up the eventListeners from any one snippet to the
+        // common global window object (and its onmessage trigger handler), each
+        // partnerSiteConfig that relates to an individual loader snippet needs to
+        // be collated into a map object that correlates iFrameId to partnerSiteConfig
+        // for the window object to be aware of and listen to in order to
+        // prevent messages from any iFrame from being ignored by the window or
+        // rather not getting passed through to the eventListeners of the
+        // partnerSiteConfig of that specific iFrame's loader snippet
+        window.partnerSiteConfigs[formWidgetInfoObject.iFrameId] =
+          sanitisedPartnerSiteConfigFields;
+      } else {
+        window.partnerSiteConfigs = {};
+        window.partnerSiteConfigs[formWidgetInfoObject.iFrameId] =
+          sanitisedPartnerSiteConfigFields;
+      }
+
+      // Handle form-related events by invoking partner's pre-specified callback logic
+      window.addEventListener('message', (event) => {
+        if (typeof event.data.startsWith === 'function') {
+          // Guard clause to prevent unrelated messages to trigger this logic (more efficient)
+          if (
+            event.data.startsWith('questionAnswered') ||
+            event.data.startsWith('pageChanged') ||
+            event.data.startsWith('finalSubmission') ||
+            event.data.startsWith('formSubmit') ||
+            event.data.startsWith('formError') ||
+            event.data.startsWith('failedForwardPageNavigation') ||
+            event.data.startsWith('resizeWidget') ||
+            event.data.startsWith('invokeAutoScroll') ||
+            event.data.startsWith('submissionStatusUpdated') ||
+            event.data.startsWith('initialWidgetInteraction') ||
+            event.data.startsWith('initialWidgetLoad') ||
+            event.data.startsWith('cookiesRequested')
+          ) {
+            const eventInfoArray = event.data.split(/:(.+)/); // splits the string on the first occurrence of the separator ':'
+            const eventType = eventInfoArray[0];
+            const eventInfoObject = JSON.parse(eventInfoArray[1]);
+            const iFrameIdOfEventOrigin = eventInfoObject.iFrameId;
+            const isSubmissionEvent =
+              event.data.startsWith('finalSubmission') ||
+              event.data.startsWith('formSubmit');
+
+            if (eventInfoObject.iFrameId !== formWidgetInfoObject.iFrameId) {
+              return;
+            }
+
+            const iFrameElement = document.getElementById(
+              iFrameIdOfEventOrigin
+            );
+
+            if (event.data.startsWith('cookiesRequested')) {
+              // Inform Chameleon about OneTrust cookie and add handler for any cookie changes.
+              sendOneTrustCookieConsentData(iFrameElement);
+              if (window.OneTrust) {
+                sendOneTrustLocaleData(iFrameElement);
+                window.OneTrust.OnConsentChanged(() => {
+                  sendOneTrustCookieConsentData(iFrameElement);
+                  sendOneTrustLocaleData(iFrameElement);
+                });
+              }
+              return;
+            }
+
+            if (
+              event.data.startsWith('initialWidgetInteraction') &&
+              typeof window.chameleon?.setupBrowserIntercept === 'function'
+            ) {
+              window.chameleon.setupBrowserIntercept();
+            }
+
+            if (window.chameleon.shouldLogEventsToConsole) {
+              console.info('MVF EMBED EVENT INFO');
+              console.info('MVF EMBED EVENT Type: ', eventType);
+              console.info('MVF EMBED EVENT DETAILS: ', eventInfoObject);
+              console.info(
+                'MVF EMBED IFRAMEID OF EVENT ORIGIN: ',
+                iFrameIdOfEventOrigin
               );
             }
-          }
+            // Chameleon form-related user progress / error message listener to
+            // bubble either form-related user progress or interaction errors up
+            // to the partner-site by invoking their specified event response
+            // logic of their passed in callback function
 
-          formWidgetInfoObject.mvfFormWidgetLoaded = true;
-          // Incoming commands will no longer need buffering after this
-          formWidgetInfoObject.__private__.commandBuffer.forEach(
-            (commandAndArgs) => {
-              if (commandAndArgs.function) {
-                commandAndArgs.function(...commandAndArgs.arguments);
-                // Executing all previously buffered commands that have come in
+            const snippetSpecificConfig =
+              window.partnerSiteConfigs[iFrameIdOfEventOrigin];
+            // Any widget related event from any one iFrame gets communicated to
+            // its original loader snippet (that has the corresponding eventHandler
+            // function implemented). None of the other unrelated snippets will be
+            // notified in a multi-snippet / multi-iFrame page scenario.
+            if (
+              snippetSpecificConfig &&
+              snippetSpecificConfig.eventHandlers &&
+              snippetSpecificConfig.eventHandlers[eventType] &&
+              typeof snippetSpecificConfig.eventHandlers[eventType] ===
+                'function' &&
+              isSubmissionEvent === false
+            ) {
+              snippetSpecificConfig.eventHandlers[eventType](eventInfoObject);
+            }
+
+            // If it's a submission event, prioritise calling the formSubmit event handler if it exists
+            // If it doesn't, call the legacy finalSubmission event handler instead
+            if (
+              snippetSpecificConfig &&
+              snippetSpecificConfig.eventHandlers &&
+              isSubmissionEvent === true
+            ) {
+              if (
+                snippetSpecificConfig.eventHandlers.formSubmit &&
+                typeof snippetSpecificConfig.eventHandlers.formSubmit ===
+                  'function'
+              ) {
+                snippetSpecificConfig.eventHandlers.formSubmit(eventInfoObject);
+              } else {
+                snippetSpecificConfig.eventHandlers.finalSubmission(
+                  eventInfoObject
+                );
               }
             }
-          );
-          // Clear commandBuffer after all commands were executed
-          formWidgetInfoObject.__private__.commandBuffer = [];
-        }
-      }
-    });
 
-    const onLoadHandlerFunction = () => {
-      if (sanitisedPartnerSiteConfigFields.belowFold !== false) {
-        formIframe.src = iFrameSourceUrl;
-        /*
+            const currentWidgetHeight = iFrameElement
+              ? window.getComputedStyle(iFrameElement, null).height
+              : '';
+            if (
+              event.data.startsWith('invokeAutoScroll') &&
+              snippetSpecificConfig &&
+              sanitisedPartnerSiteConfigFields.autoScroll
+            ) {
+              repositionWidgetWithAutoScroll(iFrameElement, undefined, true);
+            }
+
+            if (isSubmissionEvent && window.__private__?.paging) {
+              window.__private__.paging[
+                iFrameIdOfEventOrigin
+              ].formSubmitted = true;
+            }
+
+            if (
+              event.data.startsWith('pageChanged') &&
+              window.__private__?.paging
+            ) {
+              const destinationPageMatchObject = event.data.match(
+                /["|']destinationPage["|']:(\d+),/
+              );
+              const fromPageMatchObject = event.data.match(
+                /["|']fromPage["|']:(\d+),/
+              );
+              if (
+                destinationPageMatchObject &&
+                Array.isArray(destinationPageMatchObject) &&
+                typeof parseInt(destinationPageMatchObject[1], 10) === 'number'
+              ) {
+                window.__private__.paging[iFrameIdOfEventOrigin].currentPage =
+                  parseInt(destinationPageMatchObject[1], 10);
+              }
+              if (
+                fromPageMatchObject &&
+                Array.isArray(fromPageMatchObject) &&
+                typeof parseInt(fromPageMatchObject[1], 10) === 'number'
+              ) {
+                window.__private__.paging[iFrameIdOfEventOrigin].previousPage =
+                  parseInt(fromPageMatchObject[1], 10);
+              }
+            }
+            // Dynamic iframe height based on incoming requiredWidgetHeight data on every "resizeWidget" event
+            if (
+              iFrameIdOfEventOrigin &&
+              snippetSpecificConfig.dynamicHeight &&
+              event.data.startsWith('resizeWidget')
+            ) {
+              let newWidgetHeight = eventInfoObject.requiredWidgetHeight;
+
+              if (
+                parseInt(newWidgetHeight, 10) <
+                parseInt(minimumWidgetHeight, 10)
+              ) {
+                newWidgetHeight = minimumWidgetHeight;
+              }
+
+              if (
+                parseInt(newWidgetHeight, 10) >
+                parseInt(maximumWidgetHeight, 10)
+              ) {
+                newWidgetHeight = maximumWidgetHeight;
+              }
+
+              if (newWidgetHeight !== currentWidgetHeight) {
+                iFrameElement.style.height = newWidgetHeight;
+                const parentContainer = iFrameElement.parentNode;
+                parentContainer.style.height = newWidgetHeight;
+              }
+            }
+          }
+
+          /**
+           * Chameleon will send a browserMessagesRegistered event when it's ready to receive browser messages, as we noticed issues with iOS onload event firing before Chameleon was ready, so we replay the initial messages when we receive this event to ensure Chameleon has all the required data
+           */
+          if (event.data.startsWith('browserMessagesRegistered')) {
+            if (isIOS() || isMacOS()) {
+              sendInitialMessagesToChameleon();
+
+              // TODO not sure about this - is updateCampaignId still present
+              if (formWidgetInfoObject.campaignIdOverride) {
+                /**
+                 * If we have previously received an updateCampaignId event that was not buffered, then sendInitialMessagesToChameleon would overwrite the campaign ID to be the one in this snippet and the one in the snippet would be resent
+                 */
+                formWidgetInfoObject.updateCampaignId(
+                  formWidgetInfoObject.campaignIdOverride
+                );
+              }
+            }
+
+            formWidgetInfoObject.mvfFormWidgetLoaded = true;
+            // Incoming commands will no longer need buffering after this
+            formWidgetInfoObject.__private__.commandBuffer.forEach(
+              (commandAndArgs) => {
+                if (commandAndArgs.function) {
+                  commandAndArgs.function(...commandAndArgs.arguments);
+                  // Executing all previously buffered commands that have come in
+                }
+              }
+            );
+            // Clear commandBuffer after all commands were executed
+            formWidgetInfoObject.__private__.commandBuffer = [];
+          }
+        }
+      });
+
+      const onLoadHandlerFunction = () => {
+        if (sanitisedPartnerSiteConfigFields.belowFold !== false) {
+          formIframe.src = iFrameSourceUrl;
+          /*
           Reasoning for delaying source url assignment:
           In order to improve page speed, it's a good idea to set the iframe's
           src attribute with JavaScript after the main content is done with
@@ -2156,79 +2190,101 @@ function runFormWidgetLoader(partnerSiteConfig) {
           incompatibility of some browsers (Safari, Firefox & IE). See here for
           implementation suggestions: https://webmasters.stackexchange.com/questions/39511/when-is-a-page-considered-loaded-by-search-engines-so-i-can-enhance-it-without-a
         */
-      }
-    };
-
-    if (
-      window.functionsToRunOnLoad &&
-      Array.isArray(window.functionsToRunOnLoad)
-    ) {
-      // This formLoader script may run as part of a batch of invocations from
-      // multiple snippets to load multiple iFrames onto the page. Hence, the
-      // event handlers that apply to the common global window object need to be
-      // collated into an array to prevent overrides that impact all other iFrames
-      window.functionsToRunOnLoad.push(onLoadHandlerFunction);
-    } else {
-      window.functionsToRunOnLoad = [onLoadHandlerFunction];
-    }
-
-    let pollingId = setInterval(() => {
-      const navData = window.performance.getEntriesByType('navigation');
-      let windowLoadEventHasFired =
-        navData.length > 0 && navData[0].loadEventEnd > 0;
-
-      if (windowLoadEventHasFired === false && navData.length === 0) {
-        // ios 13/14 fix for performance API inconsistencies:
-        // https://stackoverflow.com/questions/61731563/performace-api-not-supported-in-safari-browser
-        // https://bugs.webkit.org/show_bug.cgi?id=184363
-        if (
-          typeof window.performance.timing !== 'undefined' &&
-          typeof window.performance.timing.loadEventEnd !== 'undefined'
-        ) {
-          windowLoadEventHasFired = window.performance.timing.loadEventEnd > 0;
         }
+      };
+
+      if (
+        window.functionsToRunOnLoad &&
+        Array.isArray(window.functionsToRunOnLoad)
+      ) {
+        // This formLoader script may run as part of a batch of invocations from
+        // multiple snippets to load multiple iFrames onto the page. Hence, the
+        // event handlers that apply to the common global window object need to be
+        // collated into an array to prevent overrides that impact all other iFrames
+        window.functionsToRunOnLoad.push(onLoadHandlerFunction);
+      } else {
+        window.functionsToRunOnLoad = [onLoadHandlerFunction];
       }
 
-      if (windowLoadEventHasFired) {
-        // page is fully loaded from an SEO perspective
-        clearInterval(pollingId); // Prevent this code from running more than once
-        pollingId = null; // Release pollingId from the variable
-        window.functionsToRunOnLoad.forEach((loadFunction) => {
-          // Each function corresponds to a different iFrame
-          loadFunction();
-        });
-      }
-    }, 10);
+      let pollingId = setInterval(() => {
+        const navData = window.performance.getEntriesByType('navigation');
+        let windowLoadEventHasFired =
+          navData.length > 0 && navData[0].loadEventEnd > 0;
 
-    // Assign a handler function to the infoObject allowing external customer
-    // code to send key-value pairs of session data into the formWidget
-    formWidgetInfoObject.sendSessionDataToMvfFormWidget =
-      sendSessionDataToMvfFormWidget.bind(formWidgetInfoObject);
+        if (windowLoadEventHasFired === false && navData.length === 0) {
+          // ios 13/14 fix for performance API inconsistencies:
+          // https://stackoverflow.com/questions/61731563/performace-api-not-supported-in-safari-browser
+          // https://bugs.webkit.org/show_bug.cgi?id=184363
+          if (
+            typeof window.performance.timing !== 'undefined' &&
+            typeof window.performance.timing.loadEventEnd !== 'undefined'
+          ) {
+            windowLoadEventHasFired =
+              window.performance.timing.loadEventEnd > 0;
+          }
+        }
+
+        if (windowLoadEventHasFired) {
+          // page is fully loaded from an SEO perspective
+          clearInterval(pollingId); // Prevent this code from running more than once
+          pollingId = null; // Release pollingId from the variable
+          window.functionsToRunOnLoad.forEach((loadFunction) => {
+            // Each function corresponds to a different iFrame
+            loadFunction();
+          });
+        }
+      }, 10);
+
+      // Assign a handler function to the infoObject allowing external customer
+      // code to send key-value pairs of session data into the formWidget
+      formWidgetInfoObject.sendSessionDataToMvfFormWidget =
+        sendSessionDataToMvfFormWidget.bind(formWidgetInfoObject);
+
+      /**
+       * TODO: remove the use of updateCampaignId in pinnacle, then remove the function here, to prevent errors in pinnacle.
+       */
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      formWidgetInfoObject.updateCampaignId = () => {};
+
+      // Assign a handler function to the infoObject allowing external customer code to resubmit
+      formWidgetInfoObject.resubmitMvfFormWidget = ({
+        replaceAncestorSid = false,
+      } = {}) => {
+        const data = {
+          shouldResubmit: true,
+          replaceAncestorSid,
+        };
+        formIframe.contentWindow.postMessage(
+          `resubmit:${JSON.stringify(data)}`,
+          '*'
+        );
+      };
+
+      //
+      // Step 4 of 4 - Return iFrame infoObject
+      //
+      return formWidgetInfoObject;
+    }
+    return formWidgetInfoObject;
+  };
+
+  /**
+   * THE START OF THE MAIN SCRIPT
+   */
+  try {
+    //
+    // Step 1 of 4 - Validate argument object (keys and data types of all values)
+    //
+    const sanitisedPartnerSiteConfigFields =
+      getUpdatedPartnerSiteConfigFields(partnerSiteConfig);
+
+    return buildWidgetInfoObject(sanitisedPartnerSiteConfigFields);
+  } catch (error) {
+    const message = `MVF Form Loader Error - Please check your spelling, make sure that the HTML element is present on the page and that it is positioned above the loader scripts in the body section. Alternatively, please contact your MVF support team.`;
 
     /**
-     * TODO: remove the use of updateCampaignId in pinnacle, then remove the function here, to prevent errors in pinnacle.
+     * This function and all it's calls should be guarded to ensure that it always returns an error page
      */
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    formWidgetInfoObject.updateCampaignId = () => {};
-
-    // Assign a handler function to the infoObject allowing external customer code to resubmit
-    formWidgetInfoObject.resubmitMvfFormWidget = ({
-      replaceAncestorSid = false,
-    } = {}) => {
-      const data = {
-        shouldResubmit: true,
-        replaceAncestorSid,
-      };
-      formIframe.contentWindow.postMessage(
-        `resubmit:${JSON.stringify(data)}`,
-        '*'
-      );
-    };
-
-    //
-    // Step 4 of 4 - Return iFrame infoObject
-    //
-    return formWidgetInfoObject;
+    displayErrorPage(partnerSiteConfig, message);
   }
-  return formWidgetInfoObject;
 }

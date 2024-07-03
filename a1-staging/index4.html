@@ -63,6 +63,16 @@
             },
           };
           var formWidgetInfoObject = runFormWidgetLoader(inputData);
+          setTimeout(function() {
+            // Works for form 9660 only
+            var sendSessionData = formWidgetInfoObject.sendSessionDataToMvfFormWidget;
+            var dataToSend = {
+              "1e4bf0ed-01f5-11e8-bbea-02e4563f24a3": "Yes",
+              "89e571a0-1649-11e8-bbea-02e4563f24a3": "Restaurant",
+            };
+            console.log('Setting form data', dataToSend);
+            sendSessionData(dataToSend);
+          }, 1000);
       </script>
       <!-- END: MVF Widget -->
     </main>

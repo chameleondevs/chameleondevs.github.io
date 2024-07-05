@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chameleon testing playground</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <script src="./script.js"></script>
+    <script src="./datalayer-logger.js"></script>
+    <script>
+        window.dataLayer = window.dataLayer || new Proxy([], {
+            set: (obj, prop, value) => {
+                if (prop !== 'length') {
+                    const pushEvent = new CustomEvent('datalayerpush', {
+                        detail: value
+                    });
+                    window.dispatchEvent(pushEvent);
+                }
+                return Reflect.set(obj, prop, value);
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="sidebar">
+        <div>
+            <label for="formId">Form ID</label>
+            <input type="text" name="formId" id="formId" placeholder="Form ID" value="9867">
+        </div>
+        <div>
+            <label for="env">Environment</label>
+            <select id="env" name="env">
+                <option value="dev">Local</option>
+                <option value="staging" selected>Staging</option>
+                <option value="a1.staging">Staging a1</option>
+                <option value="a2.staging">Staging a2</option>
+                <option value="a3.staging">Staging a3</option>
+                <option value="a4.staging">Staging a4</option>
+                <option value="a5.staging">Staging a5</option>
+                <option value="a6.staging">Staging a6</option>
+                <option value="b1.staging">Staging b1</option>
+                <option value="production EU">Production</option>
+            </select>
+        </div>
+        <div>
+            <label for="themeName">Theme</label>
+            <select id="themeName" name="themeName">
+                <option value="indigo">Indigo</option>
+                <option value="chameleon">Chameleon</option>
+                <option value="rhubarb">Rhubarb</option>
+                <option value="atlantic">Atlantic</option>
+                <option value="custom">Custom</option>
+            </select>
+        </div>
+        <div>
+            <label for="featureFlags">Feature flags</label>
+            <input type="text" name="featureFlags" id="featureFlags" placeholder="default">
+        </div>
+        <div>
+            <button onclick="loadForm()">Load form</button>
+        </div>
+        <div>
+            <label>dataLayer entries</label>
+            <datalayer-logger></datalayer-logger>
+        </div>
+    </div>
+    <div class="content">
+        <div class="container" id="chameleonContainer"></div>
+    </div>
+</body>
+</html>

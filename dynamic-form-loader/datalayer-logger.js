@@ -85,7 +85,7 @@ class dataLayerLogger extends HTMLElement {
       messageItem.innerHTML = this.formatMessage(eventType, parsedData, 'internal');
       logContainer.appendChild(messageItem);
     } catch (e) {
-      console.error(`Could not parse message ${data}`);
+      console.error(`Could not parse message ${JSON.stringify(data)}`);
     }
   }
 

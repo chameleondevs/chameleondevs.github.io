@@ -8,15 +8,15 @@ input, select {
     width: 100%;
     padding: 5px;
     margin: 10px 0;
-    border: 2px solid rgb(255, 211, 17);
+    border: 2px solid rgb(255, 255, 255);
     border-radius: 5px;
     background: transparent;
-    color: rgb(255, 211, 17);
+    color: rgb(255, 255, 255);
 }
 
 option {
-    background-color: #2d1147;
-    color: rgb(255, 211, 17);
+    background-color: rgb(28, 39, 58);
+    color: rgb(255, 255, 255);
 }
 
 input:active, input:focus, select:active, select:focus, input:focus-visible, select:focus-visible {
@@ -24,7 +24,7 @@ input:active, input:focus, select:active, select:focus, input:focus-visible, sel
 }
 
 label {
-    color: rgb(255, 211, 17);
+    color: rgb(255, 255, 255);
     font-weight: bold;
     font-size: 12px;
 }
@@ -36,8 +36,8 @@ button {
     padding: 10px 20px;
     border: none;
     border-radius: 5px;
-    background-color: rgb(255, 211, 17);
-    color: #2d1147;
+    background-color: rgb(255, 187, 0);
+    color: rgb(28, 39, 58);
     cursor: pointer;
 }
 
@@ -45,7 +45,7 @@ body {
     font-family: 'Poppins', sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #ffecd3;
+    background-color: rgba(247,247,247);
 }
 
 .sidebar {
@@ -54,8 +54,8 @@ body {
     top: 0;
     bottom: 0;
     width: 400px;
-    background-color: #2d1147;
-    color: rgb(255, 211, 17);
+    background-color: rgb(28, 39, 58);
+    color: rgba(247,247,247);
     padding: 20px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }

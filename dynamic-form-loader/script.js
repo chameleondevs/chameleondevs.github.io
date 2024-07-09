@@ -9,11 +9,21 @@ const storeFormValuesInLocalStorage = () => {
     localStorage.setItem('featureFlags', featureFlags);
 }
 
-const loadFormValuesFromLocalStorage = () => {
-    document.getElementById('formId').value = localStorage.getItem('formId');
-    document.getElementById('env').value = localStorage.getItem('env');
-    document.getElementById('themeName').value = localStorage.getItem('themeName');
-    document.getElementById('featureFlags').value = localStorage.getItem('featureFlags');
+const getValueFromLocalStorageOrQueryStringParams = (key) => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(key) || localStorage.getItem(key);
+}
+
+const loadFormValuesFromLocalStorageOrQueryStringParams = () => {
+    document.getElementById('formId').value = getValueFromLocalStorageOrQueryStringParams('formId');
+    document.getElementById('env').value = getValueFromLocalStorageOrQueryStringParams('env');
+    document.getElementById('themeName').value = getValueFromLocalStorageOrQueryStringParams('themeName');
+    document.getElementById('featureFlags').value = getValueFromLocalStorageOrQueryStringParams('featureFlags');
+
+    // if all values are present, load the form
+    if (document.getElementById('formId').value && document.getElementById('env').value && document.getElementById('themeName').value) {
+        loadForm();
+    }
 }
 
 const loadForm = async () => {
@@ -95,5 +105,5 @@ const getJsHost = (env) => {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadFormValuesFromLocalStorage();
+    loadFormValuesFromLocalStorageOrQueryStringParams();
 });

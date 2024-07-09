@@ -9,7 +9,7 @@ class dataLayerLogger extends HTMLElement {
           padding: 5px;
           border-radius: 5px;
           margin: 10px 0;
-          background-color: #140423;
+          background-color: rgb(17,24,37);
           font-family: monospace;
           overflow: hidden;
           overflow-y: scroll;
@@ -19,15 +19,21 @@ class dataLayerLogger extends HTMLElement {
             padding: 5px;
             margin: 5px 0;;
             font-size: 10px;
-            background: #2d1147;
+            background: rgb(28, 39, 58);
             overflow: hidden;
         }
         .messageItem {
             padding: 5px;
             margin: 5px 0;;
             font-size: 10px;
-            background: #890978;
+            background: rgb(28, 39, 58);
             overflow: hidden;
+        }
+        summary {
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            padding: 5px 0;
         }
       </style>
      <div class="logContainer">
@@ -53,32 +59,36 @@ class dataLayerLogger extends HTMLElement {
   }
 
   handlePostMessage(e) {
+    if (!e.data) {
+      console.log(`No data in post message ${e}`);
+    }
     this.writeMessage(e.data);
   }
 
   writeDataLayerPush(data) {
     const logContainer = this.shadowRoot.querySelector('.logContainer');
-    const logItem = document.createElement('div');
+    const logItem = document.createElement('details');
     logItem.classList.add('logItem');
-    logItem.innerHTML = this.formatMessage(data.event, data);
+    logItem.innerHTML = this.formatMessage(data.event, data, 'dataLayer');
     logContainer.appendChild(logItem);
   }
 
 
   writeMessage(data) {
     const logContainer = this.shadowRoot.querySelector('.logContainer');
-    const messageItem = document.createElement('div');
+    const messageItem = document.createElement('details');
     messageItem.classList.add('messageItem');
+
     const eventInfoArray = data.split(/:(.+)/);
     const eventType = eventInfoArray[0];
     const parsedData = JSON.parse(eventInfoArray[1]);
-    messageItem.innerHTML = this.formatMessage(eventType, parsedData);
+    messageItem.innerHTML = this.formatMessage(eventType, parsedData, 'internal');
     logContainer.appendChild(messageItem);
   }
 
-  formatMessage(eventType, data) {
-    let html = `<h3>${eventType}</h3>`;
-    html += this.formatData(data);
+  formatMessage(eventType, data, source) {
+    let html = `<summary>${eventType} <small>${source}</small></summary>`;
+    html += `${this.formatData(data)};`
     return html;
   }
 

@@ -78,12 +78,15 @@ class dataLayerLogger extends HTMLElement {
     const logContainer = this.shadowRoot.querySelector('.logContainer');
     const messageItem = document.createElement('details');
     messageItem.classList.add('messageItem');
-
-    const eventInfoArray = data.split(/:(.+)/);
-    const eventType = eventInfoArray[0];
-    const parsedData = JSON.parse(eventInfoArray[1]);
-    messageItem.innerHTML = this.formatMessage(eventType, parsedData, 'internal');
-    logContainer.appendChild(messageItem);
+    try {
+      const eventInfoArray = data.split(/:(.+)/);
+      const eventType = eventInfoArray[0];
+      const parsedData = JSON.parse(eventInfoArray[1]);
+      messageItem.innerHTML = this.formatMessage(eventType, parsedData, 'internal');
+      logContainer.appendChild(messageItem);
+    } catch (e) {
+      console.error(`Could not parse message ${data}`);
+    }
   }
 
   formatMessage(eventType, data, source) {

@@ -44,6 +44,41 @@
               continueButtonTextColor: "#ffffff",
               secondaryTextColor: "#4f4f4f",
             },
+                        eventHandlers: {
+                    initialWidgetInteraction: function (eventInfo) {
+                        console.log('initialWidgetInteraction-inputFunction', eventInfo);
+                    },
+                    initialWidgetLoad: function (eventInfo) {
+                        console.log('initialWidgetLoad-inputFunction', eventInfo);
+                    },
+                    pageChanged: function (eventInfo) {
+                      console.log('pageChanged-inputFunction', eventInfo);
+                    },
+                    questionAnswered: function (eventInfo) {
+                      console.log('questionAnswered-inputFunction', eventInfo);
+                    },
+                    formSubmit: function (eventInfo) {
+                      console.log('formSubmit-inputFunction', eventInfo);
+                    },
+                    formError: function (errorInfo) {
+                        console.log('formError-inputFunction', errorInfo);
+                    },
+                    widgetVisible: function (eventInfo) {
+                      console.log('widgetVisible-inputFunction', eventInfo);
+                    },
+                    failedForwardPageNavigation: function (eventInfo) {
+                      console.log('failedForwardPageNavigation-inputFunction');
+                    },
+                    submissionStatusUpdated: function(eventInfo) {
+                      console.log('submissionStatusUpdated', eventInfo);
+                    },
+                    subcategoryMatchesRequested: function(eventInfo) {
+                    console.log('subcategoryMatchesRequested', eventInfo);
+                    },
+                    customerMatchesRequested: function(eventInfo) {
+                            console.log('customerMatchesRequested', eventInfo);
+                    },
+                },
           };
           var formWidgetInfoObject = runFormWidgetLoader(inputData);
       </script>

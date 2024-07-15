@@ -81,6 +81,16 @@
                 },
           };
           var formWidgetInfoObject = runFormWidgetLoader(inputData);
+                  var formWidgetInfoObject = runFormWidgetLoader(inputData);
+                  setTimeout(() => {
+              var sendSessionData = formWidgetInfoObject.sendSessionDataToMvfFormWidget;
+              var dataToSend = {
+                // ['a2f8b4ab-f96c-11e4-824b-22000a699fb3']: 322522,
+                phone_work: "8004444444",
+                first_name: "Russell Wind",
+              };
+              sendSessionData( dataToSend );
+            }, 10000)
       </script>
       <!-- END: MVF Widget -->
     </main>

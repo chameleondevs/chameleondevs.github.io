@@ -81,15 +81,15 @@
                 },
           };
           var formWidgetInfoObject = runFormWidgetLoader(inputData);
-                  setTimeout(() => {
-              var sendSessionData = formWidgetInfoObject.sendSessionDataToMvfFormWidget;
-              var dataToSend = {
+          const params = new URLSearchParams(window.location.search);
+          if (params.get('prepop') === 'true') {
+            var sendSessionData = formWidgetInfoObject.sendSessionDataToMvfFormWidget;
+            var dataToSend = {
                 primary_address_postalcode: '90210',
                 phone_work: "8004444444",
                 first_name: "Russell Wind",
               };
-              sendSessionData( dataToSend );
-            }, 10000)
+          }
       </script>
       <!-- END: MVF Widget -->
     </main>

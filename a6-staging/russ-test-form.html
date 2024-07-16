@@ -82,7 +82,6 @@
           };
           var formWidgetInfoObject = runFormWidgetLoader(inputData);
           const params = new URLSearchParams(window.location.search);
-          console.log(params);
           if (params.get('prepop') === 'true') {
             var sendSessionData = formWidgetInfoObject.sendSessionDataToMvfFormWidget;
             var dataToSend = {

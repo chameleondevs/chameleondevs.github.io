@@ -74,10 +74,17 @@
             <input type="text" name="featureFlags" id="featureFlags" placeholder="default">
         </div>
         <div>
+            <input type="checkbox" name="legalStatementAboveNavigation" id="legalStatementAboveNavigation"/><label class="checkbox-label" for="legalStatementAboveNavigation">Legal statement above navigation</label>
+
+        </div>
+        <div>
+            <input type="checkbox" name="dynamicHeight" id="dynamicHeight" checked/><label class="checkbox-label" for="dynamicHeight">Use dynamic height</label>
+        </div>
+        <div>
             <button onclick="loadForm()">Load form</button>
         </div>
         <div>
-            <label>dataLayer entries</label>
+            <label>Events</label>
             <datalayer-logger></datalayer-logger>
         </div>
     </div>

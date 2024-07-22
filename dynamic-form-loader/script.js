@@ -34,6 +34,8 @@ const loadForm = async () => {
         const env = document.getElementById('env').value;
         const themeName = document.getElementById('themeName').value;
         const featureFlags = document.getElementById('featureFlags').value;
+        const isConsentStatementAboveNavigation = document.getElementById('legalStatementAboveNavigation').checked;
+        const isDynamicHeightEnabled = document.getElementById('dynamicHeight').checked;
         if (featureFlags) {
             const configTag = document.createElement('script');
             configTag.innerHTML = `
@@ -63,10 +65,10 @@ const loadForm = async () => {
                 domain: 'eu',
                 env: '${env}',
                 formId: '${formId}',
-                dynamicHeight: true,
+                dynamicHeight: ${isDynamicHeightEnabled ? 'true' : 'false'},
                 height: 450,
                 themeName: '${themeName}',
-                isConsentStatementAboveNavigation: true,
+                isConsentStatementAboveNavigation: ${isConsentStatementAboveNavigation ? 'true' : 'false'}
             };
             var formWidgetInfoObject = runFormWidgetLoader(inputData);
         `;

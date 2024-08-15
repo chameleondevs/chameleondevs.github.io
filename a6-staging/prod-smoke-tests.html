@@ -598,6 +598,77 @@
       </script>
         </div>
       <!-- END: MVF Widget -->
+            <div>
+      <h1>Form 6763</h1>
+            <div id="ExpertMarketWidget1" style="height:450px; max-width:800px; border: 1px solid #3652a1; border-radius: 6px; box-shadow: 0.75rem 0.75rem 0 rgb(54 82 161 / 20%); margin: auto"></div>
+      <script type='text/javascript'>
+          var inputData = {
+            formId: '6763',
+            campaignId: '6220d6030a88c',
+            domain: 'a6.staging',
+            containerId: "ExpertMarketWidget1",
+            height: 450,
+            env: 'a6.staging',
+            dynamicHeight: true,
+            autoScroll: true,
+            betaFontOverride: "Public Sans",
+            borderEnabled: false,
+            belowFold: false,
+            themeName: 'custom',
+            paletteOverrides: {
+              answerSelectedColor: "#12bd9c",
+              answerBackgroundColor: "#ffffff",
+              widgetBackgroundColor: "#fdfdfd",
+              answerUnselectedColor: "#949494",
+              continueButtonColor: "#3754a0",
+              continueButtonHoverColor: "#5c78c7",
+              backButtonColor: "#ededed",
+              backButtonHoverColor: "#dfdfdf",
+              secondaryBackgroundColor: "#eaf7fe",
+              scrollIndicatorColor: "#4f4f4f",
+              primaryTextColor: "#000000",
+              continueButtonTextColor: "#ffffff",
+              secondaryTextColor: "#4f4f4f",
+            },
+                        eventHandlers: {
+                    initialWidgetInteraction: function (eventInfo) {
+                        console.log('initialWidgetInteraction-inputFunction', eventInfo);
+                    },
+                    initialWidgetLoad: function (eventInfo) {
+                        console.log('initialWidgetLoad-inputFunction', eventInfo);
+                    },
+                    pageChanged: function (eventInfo) {
+                      console.log('pageChanged-inputFunction', eventInfo);
+                    },
+                    questionAnswered: function (eventInfo) {
+                      console.log('questionAnswered-inputFunction', eventInfo);
+                    },
+                    formSubmit: function (eventInfo) {
+                      console.log('formSubmit-inputFunction', eventInfo);
+                    },
+                    formError: function (errorInfo) {
+                        console.log('formError-inputFunction', errorInfo);
+                    },
+                    widgetVisible: function (eventInfo) {
+                      console.log('widgetVisible-inputFunction', eventInfo);
+                    },
+                    failedForwardPageNavigation: function (eventInfo) {
+                      console.log('failedForwardPageNavigation-inputFunction');
+                    },
+                    submissionStatusUpdated: function(eventInfo) {
+                      console.log('submissionStatusUpdated', eventInfo);
+                    },
+                    subcategoryMatchesRequested: function(eventInfo) {
+                    console.log('subcategoryMatchesRequested', eventInfo);
+                    },
+                    customerMatchesRequested: function(eventInfo) {
+                            console.log('customerMatchesRequested', eventInfo);
+                    },
+                },
+          };
+          var formWidgetInfoObject = runFormWidgetLoader(inputData);
+      </script>
+        </div>
     </main>
   </body>
 </html>

@@ -10,7 +10,11 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             <div slot="content">
                 <div>
                     <zui-label>Env:</zui-label>
-                    <zui-input name="env" id="env"></zui-input>
+                    <zui-select name="env" id="env" options='${JSON.stringify([
+                        { label: 'Development', value: 'dev' },
+                        { label: 'Staging', value: 'staging' },
+                    ])}'>
+                    </zui-select>
                 </div>
                 <div>
                     <zui-label>Form Id:</zui-label>

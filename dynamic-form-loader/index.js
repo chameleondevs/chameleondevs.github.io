@@ -8,6 +8,7 @@ import { DropdownContainer } from "./Components/Atoms/Dropdown/Dropdown.js";
 import { DropdownItem } from "./Components/Atoms/DropdownItem/DropdownItem.js";
 import { LogScreen } from "./Components/Atoms/LogScreen/LogScreen.js";
 import { Toggle } from "./Components/Atoms/Toggle/Toggle.js";
+import { Select } from "./Components/Atoms/Select/Select.js";
 
 customElements.define('zui-button', Button);
 customElements.define('zui-copy-to-clipboard', CopyToClipboard);
@@ -19,3 +20,4 @@ customElements.define('zui-dropdown', DropdownContainer);
 customElements.define('zui-dropdown-item', DropdownItem);
 customElements.define('zui-log-screen', LogScreen);
 customElements.define('zui-toggle', Toggle);
+customElements.define('zui-select', Select);

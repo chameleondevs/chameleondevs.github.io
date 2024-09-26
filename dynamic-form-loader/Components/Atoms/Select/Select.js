@@ -11,10 +11,24 @@ export class Select extends BaseComponent {
         setTimeout(() => {
             this.shadowRoot.querySelector('input').style.borderColor = getComputedStyle(this.shadowRoot.querySelector('input'), null).color;
         }, 100);
+        this.shadowRoot.querySelector('input').addEventListener('change', (e) => { this.handleChange(e) });
+        this.shadowRoot.getElementById('openDropdown').addEventListener('click', () => {
+            this.toggleDropdown();
+        });
+    }
+
+    handleChange = (e) => {
+        this.dispatchEvent(new CustomEvent('zui-change', { detail: {value: e.target.value }}));
+        this.shadowRoot.querySelector('zui-dropdown').setAttribute('open', 'false');
+    }
+
+    toggleDropdown = () => {
+        const dropdown = this.shadowRoot.querySelector('zui-dropdown');
+        dropdown.toggleOpen();
     }
 
     static get observedAttributes() {
-        return ['value', 'type', 'name'];
+        return ['value', 'type', 'name', 'options'];
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -33,5 +47,26 @@ export class Select extends BaseComponent {
         if (name === 'placeholder' && oldValue !== newValue) {
             this.shadowRoot.querySelector('input').placeholder = newValue;
         }
+
+        if (name === 'options' && oldValue !== newValue) {
+            this.populateOptions(newValue);
+        }
+    }
+
+    populateOptions = (options) => {
+        const dropdown = this.shadowRoot.querySelector('zui-dropdown');
+        dropdown.innerHTML = '';
+        const optionsObject = JSON.parse(options);
+        console.log(optionsObject);
+        optionsObject.forEach(option => {
+            const dropdownItem = document.createElement('zui-dropdown-item');
+            dropdownItem.innerHTML = option.label;
+            dropdownItem.addEventListener('click', () => {
+                this.shadowRoot.querySelector('input').value = option.value;
+                this.shadowRoot.querySelector('input').dispatchEvent(new Event('change'));
+                this.shadowRoot.getElementById('openDropdown').innerText = option.label;
+            });
+            dropdown.appendChild(dropdownItem);
+        });
     }
 }

@@ -1,6 +1,30 @@
 customElements.define('chameleon-form-manager', class ChameleonFormManager extends HTMLElement {
     constructor() {
         super();
+
+        this.envOptions = [
+            { label: 'Local', value: 'dev' },
+            { label: 'Staging', value: 'staging' },
+            { label: 'Staging A1', value: 'a1.staging' },
+            { label: 'Staging A2', value: 'a2.staging' },
+            { label: 'Staging A3', value: 'a3.staging' },
+            { label: 'Staging A4', value: 'a4.staging' },
+            { label: 'Staging A5', value: 'a5.staging' },
+            { label: 'Staging A6', value: 'a6.staging' },
+            { label: 'Staging B1', value: 'b1.staging' },
+            { label: 'Production NA', value: 'production.na' },
+            { label: 'Production EU', value: 'production.eu' }
+        ];
+
+        this.themeOptions = [
+            { label: 'Chameleon', value: 'chameleon' },
+            { label: 'Rhubarb', value: 'rhubarb' },
+            { label: 'Atlantic', value: 'atlantic' },
+            { label: 'Indigo', value: 'indigo' },
+            { label: 'GoWizard', value: 'gowizard' },
+            { label: 'Custom', value: 'custom' }
+        ];
+
         this.attachShadow({mode: 'open'});
         this.shadowRoot.innerHTML = `
         <zui-card collapsed="false">
@@ -10,10 +34,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             <div slot="content">
                 <div>
                     <zui-label>Env:</zui-label>
-                    <zui-select name="env" id="env" options='${JSON.stringify([
-                        { label: 'Development', value: 'dev' },
-                        { label: 'Staging', value: 'staging' },
-                    ])}'>
+                    <zui-select name="env" id="env" options='${JSON.stringify(this.envOptions)}'>
                     </zui-select>
                 </div>
                 <div>
@@ -22,7 +43,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 </div>
                 <div>
                     <zui-label>Theme:</zui-label>
-                    <zui-input name="theme" id="theme"></zui-input>
+                    <zui-select name="theme" id="theme" options='${JSON.stringify(this.themeOptions)}'>
                 </div>
                 <div>
                     <zui-label>Feature flags:</zui-label>
@@ -55,25 +76,13 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         </style>
         `;
 
-        this.envOptions = [
-            { label: 'Development', value: 'dev' },
-            { label: 'Staging', value: 'staging' },
-            { label: 'Production', value: 'prod' }
-        ];
-
-        this.themeOptions = [
-            { label: 'Default', value: 'default' },
-            { label: 'Dark', value: 'dark' },
-            { label: 'Light', value: 'light' }
-        ];
-
         this.config = {
             env: null,
             theme: null,
             formId: null
         }
 
-        this.formHistory= [];
+        this.formHistory = [];
     }
 
     getChameleonFrontEndHostForEnv = (env) => {
@@ -159,19 +168,18 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
     }
 
     pushFormIdToHistory(formId, env, theme, metadata) {
-        let formHistory = JSON.parse(localStorage.getItem('formHistory')) || [];
-        if (formHistory.some(form => form.formId === formId)) {
-            formHistory = formHistory.filter(form => form.formId !== formId);
+        if (this.formHistory.some(form => (form.formId === formId && form.env === env && form.theme === theme))) {
+            console.log('MATCH FOUND');
+            this.formHistory = this.formHistory.filter(form => (form.formId !== formId || form.env !== env || form.theme !== theme));
         }
-
-        formHistory.push({
+        this.formHistory.push({
             formId: formId,
             env: env,
             theme: theme,
             lastUsed: new Date().toISOString(),
             label: `${formId} - ${env} (${metadata.subcategoryName}, ${metadata.locale})`
         });
-        localStorage.setItem('formHistory', JSON.stringify(formHistory));
+        localStorage.setItem('formHistory', JSON.stringify(this.formHistory));
     }
 
     loadForm = async () => {
@@ -204,7 +212,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 locale: data.forms[formId].metadata.locale_code
             };
         } catch (e) {
-            throw new Error('Failed to find form')
+            throw new Error('Failed to find form');
         }
     }
 

@@ -34,6 +34,10 @@ export class Select extends BaseComponent {
     attributeChangedCallback(name, oldValue, newValue) {
         if (name === 'value' && oldValue !== newValue) {
             this.shadowRoot.querySelector('input').value = newValue;
+            const labelForValue = this.optionsObject.find(option => option.value === newValue);
+            if (labelForValue) {
+                this.shadowRoot.getElementById('openDropdown').innerText = labelForValue.label;
+            }
         }
 
         if (name === 'type' && oldValue !== newValue) {
@@ -56,15 +60,15 @@ export class Select extends BaseComponent {
     populateOptions = (options) => {
         const dropdown = this.shadowRoot.querySelector('zui-dropdown');
         dropdown.innerHTML = '';
-        const optionsObject = JSON.parse(options);
-        console.log(optionsObject);
-        optionsObject.forEach(option => {
+        this.optionsObject = JSON.parse(options);
+        console.log(this.optionsObject);
+        this.optionsObject.forEach(option => {
             const dropdownItem = document.createElement('zui-dropdown-item');
             dropdownItem.innerHTML = option.label;
             dropdownItem.addEventListener('click', () => {
                 this.shadowRoot.querySelector('input').value = option.value;
                 this.shadowRoot.querySelector('input').dispatchEvent(new Event('change'));
-                this.shadowRoot.getElementById('openDropdown').innerText = option.label;
+                this.setAttribute('value', option.value);
             });
             dropdown.appendChild(dropdownItem);
         });

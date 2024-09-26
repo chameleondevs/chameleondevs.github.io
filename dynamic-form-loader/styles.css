@@ -1,86 +1,45 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@200..900&display=swap');
 
 * {
     box-sizing: border-box;
 }
 
-input, select {
-    width: 100%;
-    padding: 5px;
-    margin: 10px 0;
-    border: 2px solid rgb(255, 255, 255);
-    border-radius: 5px;
-    background: transparent;
-    color: rgb(255, 255, 255);
-}
-
-option {
-    background-color: rgb(28, 39, 58);
-    color: rgb(255, 255, 255);
-}
-
-input:active, input:focus, select:active, select:focus, input:focus-visible, select:focus-visible {
-    border: 2px solid rgb(255, 211, 17);
-}
-
-label {
-    color: rgb(255, 255, 255);
-    font-weight: bold;
-    font-size: 12px;
-}
-
-input[type="checkbox"] {
-    display: none;
-}
-
-label.checkbox-label {
-    display: block;
-    position: relative;
-    margin: 10px 0;
-    line-height: 24px;
-    padding: 0 0 0 30px;
-}
-
-label.checkbox-label:hover {
-    color: rgb(255, 211, 17);
-}
-
-label.checkbox-label:hover::before {
-    border: 2px solid rgb(255, 211, 17);
-}
-
-label.checkbox-label::before {
-    content: '';
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 2px solid rgb(255, 255, 255);
-    border-radius: 5px;
-    margin-right: 10px;
-    cursor: pointer;
-    position: absolute;
-    left: 0;
-    top: 0;
-    font-size: 20px;
-    line-height: 20px;
-    text-align: center;
-}
-
-input[type="checkbox"]:checked + label.checkbox-label::before {
-    content: '\2713';
-}
-
-
-button {
-    width: 100%;
-    margin: 5px 0;
-    display: block;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    background-color: rgb(255, 187, 0);
-    color: rgb(28, 39, 58);
-    cursor: pointer;
+html {
+    --color-white: #ffffff;
+    --color-off-white: #f6f1e9;
+    --color-cream: #D9D2C2;
+    --colo-dark-cream: #BFB1A8;
+    --button-border-radius: 5px;
+    --color-ui: rgb(36, 51, 82);
+    --color-ui-dark: rgb(28, 39, 58);
+    --color-ui-opaque: rgba(36, 51, 82, 0.19607843137254902);
+    --color-ui-extra-opaque: rgba(36, 51, 82, 0.11764705882352941);
+    --color-ui-light: rgb(42, 66, 118);
+    --color-cta:  #d6731a;
+    --color-cta-light: #ea7e1e;
+    --color-cta-dark: #cd6815;
+    --color-success: #736b1e;
+    --color-success-opaque:  #736b1e33;
+    --color-alert: #bf1b1b;
+    --color-alert-opaque: #bf1b1b33;
+    --color-text: #333;
+    --color-header: #333;
+    --color-grey: #BFB1A8;
+    --color-grey-medium: #D9D2C2;
+    --color-light-grey: #f6f1e9;
+    --button-front-color-cta: #FFFFFF;
+    --button-front-color-ui: #FFFFFF;
+    --button-front-color-light: #000000;
+    --button-box-shadow-blur: 0;
+    --button-box-shadow-offset-x: 0;
+    --button-box-shadow-offset-y: 4px;
+    --button-box-shadow-spread-radius: 0;
+    --input-border-width: 2px;
+    --input-border-radius: 5px;
+    --font-family: "Poppins", sans-serif;
+    --font-family-heading: "Poppins", sans-serif;
+    --font-family-monospace: "Inconsolata", monospace;
 }
 
 body {
@@ -91,19 +50,25 @@ body {
 }
 
 .sidebar {
+    font-size: 14px;
     position: fixed;
     left: 0;
     top: 0;
     bottom: 0;
-    width: 400px;
-    background-color: rgb(28, 39, 58);
-    color: rgba(247,247,247);
+    width: 450px;
+    background-color: var(--color-ui);
+    color: var(--color-white);
     padding: 20px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    overflow-y: scroll;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-white) var(--color-ui);
+
 }
 
 .content {
-    margin-left: 400px;
+    margin-left: 450px;
     padding: 20px;
 }
 

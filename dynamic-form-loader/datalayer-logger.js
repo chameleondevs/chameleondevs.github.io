@@ -1,44 +1,45 @@
-class dataLayerLogger extends HTMLElement {
+customElements.define('datalayer-logger', class dataLayerLogger extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.innerHTML = `
-      <style>
-        :host {
+      <style> 
+        .container {
           display: block;
-          padding: 5px;
-          border-radius: 5px;
-          margin: 10px 0;
-          background-color: rgb(17,24,37);
-          font-family: monospace;
-          overflow: hidden;
-          overflow-y: scroll;
-          height: 600px;
         }
+        
         .logItem {
             padding: 5px;
             margin: 5px 0;;
-            font-size: 10px;
-            background: rgb(28, 39, 58);
+            font-size: 12px;
+            background: #152B49FF;
             overflow: hidden;
+            border-radius: 3px;
+            border: 1px solid white;
+            box-shadow: 0 0 2px #737dff, inset 0 0 2px #737dff;
         }
         .messageItem {
             padding: 5px;
             margin: 5px 0;;
-            font-size: 10px;
-            background: rgb(28, 39, 58);
+            font-size: 12px;
+            background: #152B49FF;
             overflow: hidden;
+            border-radius: 3px;
+            border: 1px solid white;
+            box-shadow: 0 0 2px #737dff, inset 0 0 2px #737dff;
         }
         .timestamp {
-            font-size: 8px;
-            color: grey;
+            font-size: 14px;
+            color: #c792ff;
+            text-shadow: 0 0 2px blueviolet;
             text-align: right;
+            font-weight: normal;
             margin-top: 5px;
         }
         summary {
             cursor: pointer;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 14px;
             padding: 5px 0;
         }
         .toggleContainer {
@@ -68,29 +69,64 @@ class dataLayerLogger extends HTMLElement {
           background: white;
           color:  rgb(17, 24, 37); 
         }
+        .headerslot {
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+        }
         
       </style>
-      <div class="toggleContainer">
-        <label class="toggle">
-          <input type="checkbox" id="toggleDataLayer" checked>
-          <span>dataLayer</span>
-        </label>
-        <label class="toggle">
-          <input type="checkbox" id="toggleInternal" checked>
-          <span>internal</span>
-        </label>
-      </div>
-      <div class="logContainer"></div>
+      <zui-card collapsed="true">
+        <div slot="header" class="headerslot">
+            <zui-status-light status="disabled" id="statusLight"></zui-status-light>Event logger
+        </div>
+        
+        <div slot="content">
+            <div class="container">
+              <zui-toggle id="dataLayerToggle" checked><div slot="label">Datalayer</div></zui-toggle>
+              <zui-toggle id="internalToggle" checked><div slot="label">Chameleon internal</div></zui-toggle>
+            </div>
+            <zui-log-screen class="logContainer"></zui-log-screen>
+            </div>
+          </div>
+         </zui-card> 
     `;
+
+    this.config = {
+        showDataLayer: true,
+        showInternal: true
+    }
   }
 
   connectedCallback() {
+    this.wrapDataLayer();
+
     window.addEventListener('datalayerpush', this.handlePush.bind(this));
     window.addEventListener('cleardatalayerlogs', this.clearLogs.bind(this));
     window.addEventListener('message', this.handlePostMessage.bind(this));
+    this.shadowRoot.getElementById('dataLayerToggle').addEventListener('zui-toggle-change', (e) => {
+        this.config.showDataLayer = e.detail.checked;
+        this.filterLogs();
+    });
+    this.shadowRoot.getElementById('internalToggle').addEventListener('zui-toggle-change', (e) => {
+        this.config.showInternal = e.detail.checked;
+        this.filterLogs();
+    });
+    this.shadowRoot.getElementById('statusLight').setAttribute('status', 'success');
+  }
 
-    this.shadowRoot.querySelector('#toggleDataLayer').addEventListener('change', this.filterLogs.bind(this));
-    this.shadowRoot.querySelector('#toggleInternal').addEventListener('change', this.filterLogs.bind(this));
+  wrapDataLayer() {
+    window.dataLayer = window.dataLayer || new Proxy([], {
+      set: (obj, prop, value) => {
+        if (prop !== 'length') {
+          const pushEvent = new CustomEvent('datalayerpush', {
+            detail: value
+          });
+          window.dispatchEvent(pushEvent);
+        }
+        return Reflect.set(obj, prop, value);
+      }
+    });
   }
 
   disconnectedCallback() {
@@ -98,8 +134,11 @@ class dataLayerLogger extends HTMLElement {
     window.removeEventListener('cleardatalayerlogs', this.clearLogs);
   }
 
-  handlePush(e) {
+  async handlePush(e) {
+    this.shadowRoot.getElementById('statusLight').setAttribute('status', 'loading');
     this.writeDataLayerPush(e.detail);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    this.shadowRoot.getElementById('statusLight').setAttribute('status', 'success');
   }
 
   handlePostMessage(e) {
@@ -152,8 +191,8 @@ class dataLayerLogger extends HTMLElement {
   }
 
   filterLogs() {
-    const showDataLayer = this.shadowRoot.querySelector('#toggleDataLayer').checked;
-    const showInternal = this.shadowRoot.querySelector('#toggleInternal').checked;
+    const showDataLayer = this.config.showDataLayer;
+    const showInternal = this.config.showInternal;
 
     const logItems = this.shadowRoot.querySelectorAll('.logItem');
     const messageItems = this.shadowRoot.querySelectorAll('.messageItem');
@@ -166,6 +205,4 @@ class dataLayerLogger extends HTMLElement {
       item.style.display = showInternal ? 'block' : 'none';
     });
   }
-}
-
-customElements.define('datalayer-logger', dataLayerLogger);
+});

@@ -1,6 +1,30 @@
 customElements.define('chameleon-form-manager', class ChameleonFormManager extends HTMLElement {
     constructor() {
         super();
+
+        this.envOptions = [
+            { label: 'Local', value: 'dev' },
+            { label: 'Staging', value: 'staging' },
+            { label: 'Staging A1', value: 'a1.staging' },
+            { label: 'Staging A2', value: 'a2.staging' },
+            { label: 'Staging A3', value: 'a3.staging' },
+            { label: 'Staging A4', value: 'a4.staging' },
+            { label: 'Staging A5', value: 'a5.staging' },
+            { label: 'Staging A6', value: 'a6.staging' },
+            { label: 'Staging B1', value: 'b1.staging' },
+            { label: 'Production NA', value: 'production.na' },
+            { label: 'Production EU', value: 'production.eu' }
+        ];
+
+        this.themeOptions = [
+            { label: 'Chameleon', value: 'chameleon' },
+            { label: 'Rhubarb', value: 'rhubarb' },
+            { label: 'Atlantic', value: 'atlantic' },
+            { label: 'Indigo', value: 'indigo' },
+            { label: 'GoWizard', value: 'gowizard' },
+            { label: 'Custom', value: 'custom' }
+        ];
+
         this.attachShadow({mode: 'open'});
         this.shadowRoot.innerHTML = `
         <zui-card collapsed="false">
@@ -10,7 +34,8 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             <div slot="content">
                 <div>
                     <zui-label>Env:</zui-label>
-                    <zui-input name="env" id="env"></zui-input>
+                    <zui-select name="env" id="env" options='${JSON.stringify(this.envOptions)}'>
+                    </zui-select>
                 </div>
                 <div>
                     <zui-label>Form Id:</zui-label>
@@ -18,12 +43,16 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 </div>
                 <div>
                     <zui-label>Theme:</zui-label>
-                    <zui-input name="theme" id="theme"></zui-input>
+                    <zui-select name="theme" id="theme" options='${JSON.stringify(this.themeOptions)}'>
                 </div>
                 <div>
                     <zui-label>Feature flags:</zui-label>
                     <zui-input name="featureFlags" id="featureFlags"></zui-input>
-                </div> 
+                </div>
+                <div>
+                    <zui-toggle name="isConsentStatementAboveNavigation" id="isConsentStatementAboveNavigation" label="Consent statement above navigation"><div slot="label">Consent statement above navigation</div></zui-toggle>
+                    <zui-toggle name="isDynamicHeight" id="isDynamicHeight" label="Dynamic height"><div slot="label">Dynamic height</div></zui-toggle>
+                </div>
             </div>
              <div slot="footer">
                     <div class="footerSlot">
@@ -51,25 +80,16 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         </style>
         `;
 
-        this.envOptions = [
-            { label: 'Development', value: 'dev' },
-            { label: 'Staging', value: 'staging' },
-            { label: 'Production', value: 'prod' }
-        ];
-
-        this.themeOptions = [
-            { label: 'Default', value: 'default' },
-            { label: 'Dark', value: 'dark' },
-            { label: 'Light', value: 'light' }
-        ];
-
         this.config = {
             env: null,
             theme: null,
-            formId: null
+            formId: null,
+            featureFlags: null,
+            isConsentStatementAboveNavigation: false,
+            isDynamicHeight: true
         }
 
-        this.formHistory= [];
+        this.formHistory = [];
     }
 
     getChameleonFrontEndHostForEnv = (env) => {
@@ -151,23 +171,55 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 this.shadowRoot.getElementById('formHistoryDropdown').setAttribute('open', 'false');
             }
         });
+        this.loadConfig();
+        this.shadowRoot.getElementById('featureFlags').setAttribute('value', this.config.featureFlags || '');
+        this.shadowRoot.getElementById('featureFlags').addEventListener('zui-change', (e) => {
+            this.config.featureFlags = e.detail.value;
+            this.saveConfig('featureFlags', e.detail.value);
+        });
+        this.shadowRoot.getElementById('isConsentStatementAboveNavigation').addEventListener('zui-toggle-change', (e) => {
+            this.config.isConsentStatementAboveNavigation = e.detail.checked;
+            this.saveConfig('isConsentStatementAboveNavigation', e.detail.checked);
+        });
+        this.shadowRoot.getElementById('isDynamicHeight').addEventListener('zui-toggle-change', (e) => {
+            this.config.isDynamicHeight = e.detail.checked;
+            this.saveConfig('isDynamicHeight', e.detail.checked);
+        });
         this.populateFormHistory();
     }
 
-    pushFormIdToHistory(formId, env, theme, metadata) {
-        let formHistory = JSON.parse(localStorage.getItem('formHistory')) || [];
-        if (formHistory.some(form => form.formId === formId)) {
-            formHistory = formHistory.filter(form => form.formId !== formId);
+    loadConfig() {
+        const configFromLocalStorage = localStorage.getItem('chameleonFormManagerConfig') || '{}';
+        if (configFromLocalStorage) {
+            const parsedConfig =  JSON.parse(configFromLocalStorage);
+            this.config = {
+                ...this.config,
+                ...parsedConfig
+            };
         }
 
-        formHistory.push({
+    }
+
+    saveConfig = (fieldName, value) => {
+        this.configFromLocalStorage = JSON.parse(localStorage.getItem('chameleonFormManagerConfig')) || {};
+        this.configFromLocalStorage[fieldName] = value;
+        localStorage.setItem('chameleonFormManagerConfig', JSON.stringify(this.configFromLocalStorage));
+    }
+
+    pushFormIdToHistory(formId, env, theme, metadata) {
+        if (this.formHistory.some(form => (form.formId === formId && form.env === env && form.theme === theme))) {
+            console.log('MATCH FOUND');
+            this.formHistory = this.formHistory.filter(form => (form.formId !== formId || form.env !== env || form.theme !== theme));
+        }
+        this.formHistory.push({
             formId: formId,
             env: env,
             theme: theme,
             lastUsed: new Date().toISOString(),
-            label: `${formId} - ${env} (${metadata.subcategoryName}, ${metadata.locale})`
+            label: `${formId} - ${env} ${theme} - (${metadata.subcategoryName}, ${metadata.locale})`
         });
-        localStorage.setItem('formHistory', JSON.stringify(formHistory));
+
+        localStorage.setItem('formHistory', JSON.stringify(this.formHistory));
     }
 
     loadForm = async () => {
@@ -200,7 +252,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 locale: data.forms[formId].metadata.locale_code
             };
         } catch (e) {
-            throw new Error('Failed to find form')
+            throw new Error('Failed to find form');
         }
     }
 
@@ -242,6 +294,12 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             });
             this.shadowRoot.getElementById('formHistoryDropdown').appendChild(item);
         });
+        if (this.config.isConsentStatementAboveNavigation) {
+            this.shadowRoot.getElementById('isConsentStatementAboveNavigation').setAttribute('checked', 'true');
+        }
+        if (this.config.isDynamicHeight) {
+            this.shadowRoot.getElementById('isDynamicHeight').setAttribute('checked', 'true');
+        }
     }
 
     loadChameleonScript = async (env, formId, themeName) => {
@@ -251,7 +309,15 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         // load the translation layer
         const translationLayer = document.createElement('script');
         translationLayer.src = `${jsHost}/mvfGtmTranslationLayer.min.js`;
+
         container.appendChild(translationLayer);
+
+            const formConfigTag = document.createElement('script');
+            formConfigTag.innerHTML = `
+                window.chameleonTestSettings = {
+                    features: ${JSON.stringify((this.config.featureFlags || 'default').split(',').map(flag => flag.trim()))},
+                }`;
+            container.appendChild(formConfigTag);
 
         // Load the form loader
         const formLoader = document.createElement('script');
@@ -261,15 +327,21 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         await new Promise((resolve) => { setTimeout(resolve, 1000) });
 
         const scriptTag = document.createElement('script');
+
+        const dynamicHeight = this.config.isDynamicHeight ? 'true' : 'false';
+        const isConsentStatementAboveNavigation = this.config.isConsentStatementAboveNavigation ? 'true' : 'false';
+
+
+
         scriptTag.innerHTML = `
             var inputData = {
                 domain: 'eu',
                 env: '${env}',
                 formId: '${formId}',
-                dynamicHeight: true,
+                dynamicHeight: ${dynamicHeight},
                 height: 450,
                 themeName: '${themeName}',
-                isConsentStatementAboveNavigation: false
+                isConsentStatementAboveNavigation: ${isConsentStatementAboveNavigation},
             };
             var formWidgetInfoObject = runFormWidgetLoader(inputData);
         `;

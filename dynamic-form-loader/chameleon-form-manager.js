@@ -53,10 +53,14 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                     <zui-toggle name="isConsentStatementAboveNavigation" id="isConsentStatementAboveNavigation" label="Consent statement above navigation"><div slot="label">Consent statement above navigation</div></zui-toggle>
                     <zui-toggle name="isDynamicHeight" id="isDynamicHeight" label="Dynamic height"><div slot="label">Dynamic height</div></zui-toggle>
                 </div>
+                <div>
+                    <zui-copy-to-clipboard id="clipboard" value="" hidden></zui-copy-to-clipboard>
+                </div>
             </div>
              <div slot="footer">
                     <div class="footerSlot">
                         <zui-button id="toggleHistory" label="history" width="100%" version="primary"></zui-button>
+                        <zui-button id="share" label="share" width="100%" version="primary"></zui-button>
                         <zui-button id="loadForm" label="Load form" width="100%"></zui-button>
                     </div>
                     <zui-dropdown id="formHistoryDropdown" open="false"></zui-dropdown>
@@ -81,9 +85,9 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         `;
 
         this.config = {
-            env: null,
-            theme: null,
-            formId: null,
+            env: 'staging',
+            theme: 'chameleon',
+            formId: '',
             featureFlags: null,
             isConsentStatementAboveNavigation: false,
             isDynamicHeight: true
@@ -151,6 +155,10 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
     }
 
     connectedCallback() {
+        this.loadConfig();
+        this.shadowRoot.getElementById('formId').setAttribute('value', this.config.formId);
+        this.shadowRoot.getElementById('env').setAttribute('value', this.config.env);
+        this.shadowRoot.getElementById('theme').setAttribute('value', this.config.theme);
         window.addEventListener('message', (e) => { this.handlePostMessage(e) });
         this.shadowRoot.getElementById('loadForm').addEventListener('click', () => { this.loadForm() });
         this.shadowRoot.getElementById('formId').addEventListener('zui-change', (e) => {
@@ -166,12 +174,15 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             e.stopPropagation();
             this.shadowRoot.getElementById('formHistoryDropdown').setAttribute('open', 'true');
         });
+        this.shadowRoot.getElementById('share').addEventListener('click', (e) => {
+            this.generateSharableUrl();
+            this.shadowRoot.getElementById('clipboard').toggleAttribute('hidden');
+        });
         window.addEventListener('click', (e) => {
             if (!e.composedPath().includes(this.shadowRoot.getElementById('formHistoryDropdown'))) {
                 this.shadowRoot.getElementById('formHistoryDropdown').setAttribute('open', 'false');
             }
         });
-        this.loadConfig();
         this.shadowRoot.getElementById('featureFlags').setAttribute('value', this.config.featureFlags || '');
         this.shadowRoot.getElementById('featureFlags').addEventListener('zui-change', (e) => {
             this.config.featureFlags = e.detail.value;
@@ -186,18 +197,90 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             this.saveConfig('isDynamicHeight', e.detail.checked);
         });
         this.populateFormHistory();
+        if (this.config.formId && this.config.env && this.config.theme) {
+            this.loadForm();
+        }
+    }
+
+    generateSharableUrl() {
+        const url = new URL(window.location.href);
+        url.searchParams.set('formId', this.config.formId);
+        url.searchParams.set('env', this.config.env);
+        url.searchParams.set('theme', this.config.theme);
+        if (this.config.featureFlags) {
+            url.searchParams.set('featureFlags', this.config.featureFlags);
+        }
+        url.searchParams.set('isConsentStatementAboveNavigation', this.config.isConsentStatementAboveNavigation);
+        url.searchParams.set('isDynamicHeight', this.config.isDynamicHeight);
+
+        this.shadowRoot.getElementById('clipboard').setAttribute('value', url.href);
+    }
+
+    clearUrlParams() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('formId');
+        url.searchParams.delete('env');
+        url.searchParams.delete('theme');
+        url.searchParams.delete('featureFlags');
+        url.searchParams.delete('isConsentStatementAboveNavigation');
+        url.searchParams.delete('isDynamicHeight');
+        window.history.pushState({}, '', url.href);
+    }
+
+    getConfigFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const config = {};
+        if (urlParams.get('featureFlags')) {
+            config.featureFlags = urlParams.get('featureFlags');
+            this.saveConfig('featureFlags', urlParams.get('featureFlags'));
+        }
+        if (urlParams.get('isConsentStatementAboveNavigation')) {
+            config.isConsentStatementAboveNavigation = urlParams.get('isConsentStatementAboveNavigation') === 'true';
+            this.saveConfig('isConsentStatementAboveNavigation', urlParams.get('isConsentStatementAboveNavigation') === 'true');
+        }
+        if (urlParams.get('isDynamicHeight')) {
+            config.isDynamicHeight = urlParams.get('isDynamicHeight') === 'true';
+            this.saveConfig('isDynamicHeight', urlParams.get('isDynamicHeight') === 'true');
+        }
+        if (urlParams.get('formId') && !isNaN(urlParams.get('formId'))) {
+            config.formId = urlParams.get('formId');
+            this.saveConfig('formId', urlParams.get('formId'));
+        }
+        if (urlParams.get('env') && this.envOptions.map(option => option.value).includes(urlParams.get('env'))) {
+            config.env = urlParams.get('env');
+            this.saveConfig('env', urlParams.get('env'));
+        }
+        if (urlParams.get('theme') && this.themeOptions.map(option => option.value).includes(urlParams.get('theme'))) {
+            config.theme = urlParams.get('theme');
+            this.saveConfig('theme', urlParams.get('theme'));
+        }
+        return config;
+    }
+
+    getLatestFormConfigFromHistory() {
+        this.formHistory = JSON.parse(localStorage.getItem('formHistory')) || [];
+        const orderedFormHistory = this.formHistory.sort((a, b) => new Date(b.lastUsed) - new Date(a.lastUsed));
+        if (orderedFormHistory.length > 0) {
+            return {
+                formId: this.formHistory[0].formId,
+                env: this.formHistory[0].env,
+                theme: this.formHistory[0].theme
+            }
+        }
+        return {};
     }
 
     loadConfig() {
         const configFromLocalStorage = localStorage.getItem('chameleonFormManagerConfig') || '{}';
-        if (configFromLocalStorage) {
-            const parsedConfig =  JSON.parse(configFromLocalStorage);
-            this.config = {
-                ...this.config,
-                ...parsedConfig
-            };
-        }
-
+        const parsedConfig =  JSON.parse(configFromLocalStorage);
+        const configFromHistory = this.getLatestFormConfigFromHistory();
+        const configFromUrl = this.getConfigFromUrl();
+        this.config = {
+            ...this.config,
+            ...parsedConfig,
+            ...configFromHistory,
+            ...configFromUrl
+        };
     }
 
     saveConfig = (fieldName, value) => {
@@ -234,8 +317,8 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 this.config.theme,
                 metadata,
             );
+            this.generateSharableUrl();
         } catch (e) {
-            console.error(e);
             this.shadowRoot.getElementById('loadForm').setAttribute('loading', 'false');
             this.shadowRoot.getElementById('statusLight').setAttribute('status', 'error');
         }
@@ -252,6 +335,10 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 locale: data.forms[formId].metadata.locale_code
             };
         } catch (e) {
+            if (env === 'dev') {
+                console.log('Failed to fetch form metadata from capture, ignoring as it\'s a local environment');
+                return;
+            }
             throw new Error('Failed to find form');
         }
     }
@@ -270,15 +357,6 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         this.orderFormHistory();
         this.shadowRoot.getElementById('formHistoryDropdown').innerHTML = "";
         this.formHistory.map((form, index) => {
-            if (index === 0 && !this.config.formId) {
-                this.config.formId = form.formId;
-                this.config.env = form.env;
-                this.config.theme = form.theme;
-                this.shadowRoot.getElementById('formId').setAttribute('value', form.formId);
-                this.shadowRoot.getElementById('env').setAttribute('value', form.env);
-                this.shadowRoot.getElementById('theme').setAttribute('value', form.theme);
-                this.loadForm();
-            }
             const item = document.createElement('zui-dropdown-item');
             item.innerHTML = `<div>${form.label}</div>`;
             item.addEventListener('click', (e) => {
@@ -290,6 +368,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 this.shadowRoot.getElementById('theme').setAttribute('value', form.theme);
                 this.shadowRoot.getElementById('formHistoryDropdown').setAttribute('open', 'false');
                 this.populateFormHistory();
+                this.clearUrlParams();
                 this.loadForm();
             });
             this.shadowRoot.getElementById('formHistoryDropdown').appendChild(item);
@@ -309,30 +388,21 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         // load the translation layer
         const translationLayer = document.createElement('script');
         translationLayer.src = `${jsHost}/mvfGtmTranslationLayer.min.js`;
-
         container.appendChild(translationLayer);
-
-            const formConfigTag = document.createElement('script');
-            formConfigTag.innerHTML = `
-                window.chameleonTestSettings = {
-                    features: ${JSON.stringify((this.config.featureFlags || 'default').split(',').map(flag => flag.trim()))},
-                }`;
-            container.appendChild(formConfigTag);
-
+        const formConfigTag = document.createElement('script');
+        formConfigTag.innerHTML = `
+            window.chameleonTestSettings = {
+                features: ${JSON.stringify((this.config.featureFlags || 'default').split(',').map(flag => flag.trim()))},
+            }`;
+        container.appendChild(formConfigTag);
         // Load the form loader
         const formLoader = document.createElement('script');
         formLoader.src = `${jsHost}/formLoader.min.js`;
         container.appendChild(formLoader);
-
         await new Promise((resolve) => { setTimeout(resolve, 1000) });
-
         const scriptTag = document.createElement('script');
-
         const dynamicHeight = this.config.isDynamicHeight ? 'true' : 'false';
         const isConsentStatementAboveNavigation = this.config.isConsentStatementAboveNavigation ? 'true' : 'false';
-
-
-
         scriptTag.innerHTML = `
             var inputData = {
                 domain: 'eu',
@@ -353,21 +423,13 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         if (e?.data?.source === 'react-devtools-content-script') {
             return;
         }
-
         if (typeof e?.data === 'string' && e.data.startsWith('initialWidgetLoad')) {
             this.shadowRoot.getElementById('loadForm').setAttribute('loading', 'false');
             this.shadowRoot.getElementById('statusLight').setAttribute('status', 'success');
         }
-
         if (typeof e?.data === 'string' && e.data.startsWith('formError')) {
             this.shadowRoot.getElementById('loadForm').setAttribute('loading', 'false');
             this.shadowRoot.getElementById('statusLight').setAttribute('status', 'warning');
         }
-
-    }
-
-
-    getFormSettings = async () => {
-
     }
 });

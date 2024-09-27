@@ -95,16 +95,19 @@ customElements.define('lytics-manager', class LyticsManager extends HTMLElement 
         audienceContainer.innerHTML = audiences.map(audience => `<span>${audience}</span>`).join(', ');
     }
 
+    generateUUID = () => {
+        const crypto = window.crypto || window.msCrypto;
+        if (!crypto) {
+            console.error('crypto API not available');
+            return;
+        }
+        return crypto.randomUUID();
+    }
+
     reloadEntity = async () => {
         this.shadowRoot.getElementById('reloadEntity').setAttribute('loading', 'true');
         this.shadowRoot.getElementById('statusLight').setAttribute('status', 'loading');
-        const cookies = document.cookie.split(";");
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i];
-            const eqPos = cookie.indexOf("=");
-            const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie;
-            document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-        }
+        jstag.setid(this.generateUUID());
         jstag.loadEntity('user', jstag.getid(),  (err, entity) => {
             if (err) {
                 console.error(err);

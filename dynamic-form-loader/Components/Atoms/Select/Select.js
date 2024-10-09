@@ -1,6 +1,5 @@
-
 import { template } from "./Template.js";
-import {BaseComponent} from "../../BaseComponent.js";
+import { BaseComponent } from "../../BaseComponent.js";
 
 export class Select extends BaseComponent {
     constructor() {
@@ -61,7 +60,6 @@ export class Select extends BaseComponent {
         const dropdown = this.shadowRoot.querySelector('zui-dropdown');
         dropdown.innerHTML = '';
         this.optionsObject = JSON.parse(options);
-        console.log(this.optionsObject);
         this.optionsObject.forEach(option => {
             const dropdownItem = document.createElement('zui-dropdown-item');
             dropdownItem.innerHTML = option.label;

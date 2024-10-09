@@ -128,7 +128,8 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
     getCaptureHostForEnv = (env) => {
         switch (env) {
             case 'dev':
-                return 'https://capture.localhost';
+                // return 'https://capture.localhost';
+                return 'https://capture-a.ecs.stg9.eu-west-1.mvfglobal.net';
             case 'staging':
                 return 'https://capture-a.ecs.stg9.eu-west-1.mvfglobal.net';
             case 'a1.staging':
@@ -148,9 +149,51 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             case 'production.eu':
                 return 'https://capture-eu.mvfglobal.com';
             case 'production.na':
-                return 'https://capture-na.mvfglobal.com/';
+                return 'https://capture-na.mvfglobal.com';
             default:
                 return 'https://capture-a.ecs.stg9.eu-west-1.mvfglobal.net';
+        }
+    }
+
+    getEnvShortName(env) {
+        switch(env) {
+            case 'dev':
+                return 'dev';
+            case 'staging':
+                return 'stg';
+            case 'a1.staging':
+                return 'a1';
+            case 'a2.staging':
+                return 'a2';
+            case 'a3.staging':
+                return 'a3';
+            case 'a4.staging':
+                return 'a4';
+            case 'a5.staging':
+                return 'a5';
+            case 'a6.staging':
+                return 'a6';
+            case 'b1.staging':
+                return 'b1';
+            case 'production.eu':
+                return 'eu';
+            case 'production.na':
+                return 'na';
+            default:
+                return '?';
+        }
+    }
+
+    getTagColorForEnv = (env) => {
+        switch (env) {
+            case 'dev':
+                return 'success';
+            case 'production.eu':
+                return 'error';
+            case 'production.na':
+                return 'error';
+            default:
+                return 'warning';
         }
     }
 
@@ -199,6 +242,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         this.populateFormHistory();
         if (this.config.formId && this.config.env && this.config.theme) {
             this.loadForm();
+            this.clearUrlParams();
         }
     }
 
@@ -291,7 +335,6 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
 
     pushFormIdToHistory(formId, env, theme, metadata) {
         if (this.formHistory.some(form => (form.formId === formId && form.env === env && form.theme === theme))) {
-            console.log('MATCH FOUND');
             this.formHistory = this.formHistory.filter(form => (form.formId !== formId || form.env !== env || form.theme !== theme));
         }
         this.formHistory.push({
@@ -299,7 +342,8 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             env: env,
             theme: theme,
             lastUsed: new Date().toISOString(),
-            label: `${formId} - ${env} ${theme} - (${metadata.subcategoryName}, ${metadata.locale})`
+            subcategoryName: metadata?.subcategoryName,
+            locale: metadata?.locale
         });
 
         localStorage.setItem('formHistory', JSON.stringify(this.formHistory));
@@ -318,6 +362,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 metadata,
             );
             this.generateSharableUrl();
+            window.dispatchEvent(new CustomEvent('cleardatalayerlogs'));
         } catch (e) {
             this.shadowRoot.getElementById('loadForm').setAttribute('loading', 'false');
             this.shadowRoot.getElementById('statusLight').setAttribute('status', 'error');
@@ -358,7 +403,11 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         this.shadowRoot.getElementById('formHistoryDropdown').innerHTML = "";
         this.formHistory.map((form, index) => {
             const item = document.createElement('zui-dropdown-item');
-            item.innerHTML = `<div>${form.label}</div>`;
+            item.innerHTML = `<div style="display: flex; align-items: center; justify-content: flex-start; gap: 5px;">
+                <zui-tag type="${this.getTagColorForEnv(form.env)}">${this.getEnvShortName(form.env)}</zui-tag>
+                <pre>${form.formId}</pre>
+                <div>${form.subcategoryName || 'metadata unkown'}&nbsp; ${form.locale ? `<small>(${form.locale})</small>` : ''}</div>
+                </div>`;
             item.addEventListener('click', (e) => {
                 this.config.formId = form.formId;
                 this.config.env = form.env;
@@ -385,6 +434,10 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         const jsHost = this.getChameleonFrontEndHostForEnv(env);
         const container = document.getElementById('chameleonContainer');
         container.innerHTML = "";
+        window.chameleon = undefined;
+        window.chameleonSettings = undefined;
+        window.chameleonTestSettings = undefined;
+
         // load the translation layer
         const translationLayer = document.createElement('script');
         translationLayer.src = `${jsHost}/mvfGtmTranslationLayer.min.js`;
@@ -392,7 +445,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         const formConfigTag = document.createElement('script');
         formConfigTag.innerHTML = `
             window.chameleonTestSettings = {
-                features: ${JSON.stringify((this.config.featureFlags || 'default').split(',').map(flag => flag.trim()))},
+                features: ${JSON.stringify((this.config.featureFlags || '').split(',').map(flag => flag.trim()))},
             }`;
         container.appendChild(formConfigTag);
         // Load the form loader

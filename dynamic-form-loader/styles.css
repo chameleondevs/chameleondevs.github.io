@@ -23,6 +23,8 @@ html {
     --color-success-opaque:  #736b1e33;
     --color-alert: #bf1b1b;
     --color-alert-opaque: #bf1b1b33;
+    --color-warning:  #d6731a;
+    --color-warning-opaque: #d6731a33;
     --color-text: #333;
     --color-header: #333;
     --color-grey: #BFB1A8;

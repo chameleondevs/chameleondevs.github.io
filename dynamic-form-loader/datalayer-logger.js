@@ -187,6 +187,7 @@ customElements.define('datalayer-logger', class dataLayerLogger extends HTMLElem
   }
 
   clearLogs() {
+    this.shadowRoot.getElementById('statusLight').setAttribute('status', 'disabled');
     this.shadowRoot.querySelector('.logContainer').innerHTML = '';
   }
 

@@ -197,6 +197,15 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         }
     }
 
+    getDomainForEnv = (env) => {
+        switch (env) {
+            case 'production.na':
+                return 'na';
+            default:
+                return 'eu';
+        }
+    }
+
     connectedCallback() {
         this.loadConfig();
         this.shadowRoot.getElementById('formId').setAttribute('value', this.config.formId);
@@ -432,6 +441,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
 
     loadChameleonScript = async (env, formId, themeName) => {
         const jsHost = this.getChameleonFrontEndHostForEnv(env);
+        const chameleonDomain = this.getDomainForEnv(env);
         const container = document.getElementById('chameleonContainer');
         container.innerHTML = "";
         window.chameleon = undefined;
@@ -458,7 +468,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         const isConsentStatementAboveNavigation = this.config.isConsentStatementAboveNavigation ? 'true' : 'false';
         scriptTag.innerHTML = `
             var inputData = {
-                domain: 'eu',
+                domain: ${chameleonDomain},
                 env: '${env}',
                 formId: '${formId}',
                 dynamicHeight: ${dynamicHeight},

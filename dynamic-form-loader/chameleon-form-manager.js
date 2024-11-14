@@ -468,7 +468,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         const isConsentStatementAboveNavigation = this.config.isConsentStatementAboveNavigation ? 'true' : 'false';
         scriptTag.innerHTML = `
             var inputData = {
-                domain: ${chameleonDomain},
+                domain: '${chameleonDomain}',
                 env: '${env}',
                 formId: '${formId}',
                 dynamicHeight: ${dynamicHeight},

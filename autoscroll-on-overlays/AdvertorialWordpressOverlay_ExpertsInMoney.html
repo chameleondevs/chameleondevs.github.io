@@ -71,17 +71,21 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <h2 class="overlay-title"> This is a test of auto scroll </h2>
   <div class="vc_empty_space" style="height: 1rem"><span class="vc_empty_space_inner"></span></div>
   <script type="text/javascript">
+    window.chameleonTestSettings = {
+      features: ["alternateHydration", "autoScrollToTop"],
+    }
+
     var inputData9990944c13 = {
       formId: '9660',
       themeName: 'custom',
       domain: 'eu',
-      env: 'staging',
+      env: 'a1.staging',
       headerEnabled: false,
       borderEnabled: true,
       height: 450,
       belowFold: false,
-      betaDynamicHeight: true,
-      betaAutoScroll: true,
+      dynamicHeight: true,
+      autoScroll: true,
       isConsentStatementAboveNavigation: false,
       campaignId: '6220d6030a88c',
       betaFontOverride: 'Lato',

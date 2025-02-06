@@ -23,3 +23,10 @@ customElements.define('zui-log-screen', LogScreen);
 customElements.define('zui-toggle', Toggle);
 customElements.define('zui-select', Select);
 customElements.define('zui-tag', Tag);
+
+const toggleButton = document.getElementById('toggleSidebar');
+const sidebar = document.querySelector('.sidebar');
+
+toggleButton.addEventListener('click', () => {
+    sidebar.classList.toggle('visible');
+});

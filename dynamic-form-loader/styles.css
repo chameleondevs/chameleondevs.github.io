@@ -5,6 +5,10 @@
     box-sizing: border-box;
 }
 
+/* * {
+  overflow-anchor: none !important;
+} */
+
 html {
     --color-white: #ffffff;
     --color-off-white: #f6f1e9;
@@ -66,7 +70,7 @@ body {
     overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: var(--color-white) var(--color-ui);
-
+    transition: transform 0.3s ease;
 }
 
 .content {
@@ -77,4 +81,40 @@ body {
 .container {
     max-width: 1200px;
     margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: 100%;
+        transform: translateX(-100%);
+        display: none
+    }
+
+    .sidebar.visible {
+        transform: translateX(0);
+        display: block;
+    }
+
+    .content {
+        margin-left: 0;
+    }
+}
+
+.hidden {
+    display: none;
+}
+
+.toggle-button {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background-color: var(--color-ui);
+    color: var(--color-white);
+    border: none;
+    border-radius: 5px;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 20px;
+    z-index: 1000; /* Ensure it is above other elements */
 }

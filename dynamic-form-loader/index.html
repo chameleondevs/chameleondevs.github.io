@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chameleon testing playground</title>
     <link rel="stylesheet" type="text/css" href="styles.css">
     <script src="./index.js" type="module" defer></script>
     <script src="./lytics-manager.js" type="module" defer></script>
     <script src="./datalayer-logger.js"></script>
     <script src="./chameleon-form-manager.js" defer></script>
+    <script src="./ipsum-manager.js" defer></script>
     <script>
         // Intercepts all fetch requests and logs them to the console
         window.fetch = (function (fetch) {
@@ -18,15 +21,20 @@
             };
         })(window.fetch);
     </script>
+
 </head>
 <body>
+    <button id="toggleSidebar" aria-label="Toggle Sidebar" class="toggle-button">☰</button>
     <div class="sidebar">
         <lytics-manager></lytics-manager>
         <chameleon-form-manager></chameleon-form-manager>
         <datalayer-logger></datalayer-logger>
+        <ipsum-manager></ipsum-manager>
     </div>
     <div class="content">
+        <div class="ipsumContainer"></div>
         <div class="container" id="chameleonContainer"></div>
+        <div class="ipsumContainer"></div>
     </div>
 </body>
 </html>

@@ -90,7 +90,8 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             formId: '',
             featureFlags: null,
             isConsentStatementAboveNavigation: false,
-            isDynamicHeight: true
+            isDynamicHeight: true,
+            autoScroll: true
         }
 
         this.formHistory = [];
@@ -472,6 +473,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 env: '${env}',
                 formId: '${formId}',
                 dynamicHeight: ${dynamicHeight},
+                autoScroll: true,
                 height: 450,
                 themeName: '${themeName}',
                 isConsentStatementAboveNavigation: ${isConsentStatementAboveNavigation},

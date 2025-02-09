@@ -13,7 +13,8 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             { label: 'Staging A6', value: 'a6.staging' },
             { label: 'Staging B1', value: 'b1.staging' },
             { label: 'Production NA', value: 'production.na' },
-            { label: 'Production EU', value: 'production.eu' }
+            { label: 'Production EU', value: 'production.eu' },
+            { label: 'Feature', value: 'feature' }
         ];
 
         this.themeOptions = [
@@ -36,6 +37,10 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                     <zui-label>Env:</zui-label>
                     <zui-select name="env" id="env" options='${JSON.stringify(this.envOptions)}'>
                     </zui-select>
+                </div>
+                <div id="featureRow" hidden>
+                    <zui-label>Feature:</zui-label>
+                    <zui-input name="feature" id="feature"></zui-input>
                 </div>
                 <div>
                     <zui-label>Form Id:</zui-label>
@@ -91,13 +96,14 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             featureFlags: null,
             isConsentStatementAboveNavigation: false,
             isDynamicHeight: true,
-            autoScroll: true
+            autoScroll: true,
+            feature: '',
         }
 
         this.formHistory = [];
     }
 
-    getChameleonFrontEndHostForEnv = (env) => {
+    getChameleonFrontEndHostForEnv = (env, feature) => {
         switch (env) {
             case 'dev':
                 return 'http://chameleon.localhost:2000';
@@ -121,6 +127,8 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 return 'https://chameleon-frontend-eu.mvfglobal.com';
             case 'production.na':
                 return 'https://chameleon-frontend-na.mvfglobal.com';
+            case 'feature':
+                return `https://${feature}.chameleon.staging.mvfglobal.com`;
             default:
                 return 'https://chameleon-frontend-staging.mvfglobal.com';
         }
@@ -156,7 +164,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         }
     }
 
-    getEnvShortName(env) {
+    getEnvShortName(env, feature) {
         switch(env) {
             case 'dev':
                 return 'dev';
@@ -180,9 +188,18 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 return 'eu';
             case 'production.na':
                 return 'na';
+            case 'feature':
+                return `${feature}`;
             default:
                 return '?';
         }
+    }
+
+    formatEnvForConfig = (env, feature) => {
+        if (env === 'feature') {
+            return `staging/${feature}`;
+        }
+        return env;
     }
 
     getTagColorForEnv = (env) => {
@@ -193,17 +210,10 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 return 'error';
             case 'production.na':
                 return 'error';
+            case 'staging':
+                return 'warning';
             default:
                 return 'warning';
-        }
-    }
-
-    getDomainForEnv = (env) => {
-        switch (env) {
-            case 'production.na':
-                return 'na';
-            default:
-                return 'eu';
         }
     }
 
@@ -212,6 +222,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         this.shadowRoot.getElementById('formId').setAttribute('value', this.config.formId);
         this.shadowRoot.getElementById('env').setAttribute('value', this.config.env);
         this.shadowRoot.getElementById('theme').setAttribute('value', this.config.theme);
+        this.shadowRoot.getElementById('feature').setAttribute('value', this.config.feature);
         window.addEventListener('message', (e) => { this.handlePostMessage(e) });
         this.shadowRoot.getElementById('loadForm').addEventListener('click', () => { this.loadForm() });
         this.shadowRoot.getElementById('formId').addEventListener('zui-change', (e) => {
@@ -219,6 +230,14 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         });
         this.shadowRoot.getElementById('env').addEventListener('zui-change', (e) => {
             this.config.env = e.detail.value;
+            if (e.detail.value === 'feature') {
+                this.shadowRoot.getElementById('featureRow').removeAttribute('hidden');
+            } else {
+                this.shadowRoot.getElementById('featureRow').setAttribute('hidden', 'true');
+            }
+        });
+        this.shadowRoot.getElementById('feature').addEventListener('zui-change', (e) => {
+            this.config.feature = e.detail.value;
         });
         this.shadowRoot.getElementById('theme').addEventListener('zui-change', (e) => {
             this.config.theme = e.detail.value;
@@ -251,6 +270,9 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         });
         this.populateFormHistory();
         if (this.config.formId && this.config.env && this.config.theme) {
+            if (this.config.env === 'feature') {
+                this.shadowRoot.getElementById('featureRow').removeAttribute('hidden');
+            }
             this.loadForm();
             this.clearUrlParams();
         }
@@ -261,6 +283,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         url.searchParams.set('formId', this.config.formId);
         url.searchParams.set('env', this.config.env);
         url.searchParams.set('theme', this.config.theme);
+        url.searchParams.set('feature', this.config.feature);
         if (this.config.featureFlags) {
             url.searchParams.set('featureFlags', this.config.featureFlags);
         }
@@ -278,6 +301,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         url.searchParams.delete('featureFlags');
         url.searchParams.delete('isConsentStatementAboveNavigation');
         url.searchParams.delete('isDynamicHeight');
+        url.searchParams.delete('feature');
         window.history.pushState({}, '', url.href);
     }
 
@@ -287,6 +311,10 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         if (urlParams.get('featureFlags')) {
             config.featureFlags = urlParams.get('featureFlags');
             this.saveConfig('featureFlags', urlParams.get('featureFlags'));
+        }
+        if (urlParams.get('feature')) {
+            config.featureFlags = urlParams.get('feature');
+            this.saveConfig('feature', urlParams.get('feature'));
         }
         if (urlParams.get('isConsentStatementAboveNavigation')) {
             config.isConsentStatementAboveNavigation = urlParams.get('isConsentStatementAboveNavigation') === 'true';
@@ -318,7 +346,8 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             return {
                 formId: this.formHistory[0].formId,
                 env: this.formHistory[0].env,
-                theme: this.formHistory[0].theme
+                theme: this.formHistory[0].theme,
+                feature: this.formHistory[0].feature
             }
         }
         return {};
@@ -343,7 +372,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         localStorage.setItem('chameleonFormManagerConfig', JSON.stringify(this.configFromLocalStorage));
     }
 
-    pushFormIdToHistory(formId, env, theme, metadata) {
+    pushFormIdToHistory(formId, env, theme, metadata, feature) {
         if (this.formHistory.some(form => (form.formId === formId && form.env === env && form.theme === theme))) {
             this.formHistory = this.formHistory.filter(form => (form.formId !== formId || form.env !== env || form.theme !== theme));
         }
@@ -353,7 +382,8 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             theme: theme,
             lastUsed: new Date().toISOString(),
             subcategoryName: metadata?.subcategoryName,
-            locale: metadata?.locale
+            locale: metadata?.locale,
+            feature: feature
         });
 
         localStorage.setItem('formHistory', JSON.stringify(this.formHistory));
@@ -364,12 +394,13 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         this.shadowRoot.getElementById('statusLight').setAttribute('status', 'loading');
         try {
             const metadata = await this.getFormMetaDataFromCapture(this.config.formId, this.config.env);
-            this.loadChameleonScript(this.config.env, this.config.formId, this.config.theme);
+            this.loadChameleonScript(this.config.env, this.config.formId, this.config.theme, this.config.feature);
             this.pushFormIdToHistory(
                 this.config.formId,
                 this.config.env,
                 this.config.theme,
                 metadata,
+                this.config.feature
             );
             this.generateSharableUrl();
             window.dispatchEvent(new CustomEvent('cleardatalayerlogs'));
@@ -414,7 +445,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         this.formHistory.map((form, index) => {
             const item = document.createElement('zui-dropdown-item');
             item.innerHTML = `<div style="display: flex; align-items: center; justify-content: flex-start; gap: 5px;">
-                <zui-tag type="${this.getTagColorForEnv(form.env)}">${this.getEnvShortName(form.env)}</zui-tag>
+                <zui-tag type="${this.getTagColorForEnv(form.env)}">${this.getEnvShortName(form.env, form.feature)}</zui-tag>
                 <pre>${form.formId}</pre>
                 <div>${form.subcategoryName || 'metadata unkown'}&nbsp; ${form.locale ? `<small>(${form.locale})</small>` : ''}</div>
                 </div>`;
@@ -422,10 +453,17 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
                 this.config.formId = form.formId;
                 this.config.env = form.env;
                 this.config.theme = form.theme;
+                this.config.feature = form.feature;
                 this.shadowRoot.getElementById('formId').setAttribute('value', form.formId);
                 this.shadowRoot.getElementById('env').setAttribute('value', form.env);
                 this.shadowRoot.getElementById('theme').setAttribute('value', form.theme);
+                this.shadowRoot.getElementById('feature').setAttribute('value', form.feature);
                 this.shadowRoot.getElementById('formHistoryDropdown').setAttribute('open', 'false');
+                if (form.env === 'feature') {
+                    this.shadowRoot.getElementById('featureRow').removeAttribute('hidden');
+                } else {
+                    this.shadowRoot.getElementById('featureRow').setAttribute('hidden', 'true');
+                }
                 this.populateFormHistory();
                 this.clearUrlParams();
                 this.loadForm();
@@ -440,9 +478,8 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         }
     }
 
-    loadChameleonScript = async (env, formId, themeName) => {
-        const jsHost = this.getChameleonFrontEndHostForEnv(env);
-        const chameleonDomain = this.getDomainForEnv(env);
+    loadChameleonScript = async (env, formId, themeName, feature) => {
+        const jsHost = this.getChameleonFrontEndHostForEnv(env, feature);
         const container = document.getElementById('chameleonContainer');
         container.innerHTML = "";
         window.chameleon = undefined;
@@ -469,8 +506,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         const isConsentStatementAboveNavigation = this.config.isConsentStatementAboveNavigation ? 'true' : 'false';
         scriptTag.innerHTML = `
             var inputData = {
-                domain: '${chameleonDomain}',
-                env: '${env}',
+                env: '${this.formatEnvForConfig(env, feature)}',
                 formId: '${formId}',
                 dynamicHeight: ${dynamicHeight},
                 autoScroll: true,

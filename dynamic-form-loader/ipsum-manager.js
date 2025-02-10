@@ -47,6 +47,12 @@ customElements.define('ipsum-manager', class ipsumManager extends HTMLElement {
     }
   
     connectedCallback() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('ipsum')) {
+            this.generateIpsum();
+            this.generateIpsum();
+            this.generateIpsum();
+        }
         this.shadowRoot.getElementById('generateIpsum').addEventListener('click', async () => {
             this.shadowRoot.getElementById('generateIpsum').loading = true;
             await this.generateIpsum();
@@ -65,7 +71,7 @@ customElements.define('ipsum-manager', class ipsumManager extends HTMLElement {
 
     async generateIpsum() {
         this.shadowRoot.getElementById('statusLight').setAttribute('status', 'success');
-        const response = await fetch('https://hipsum.co/api/?type=hipster-centric&sentences=2');
+        const response = await fetch('https://hipsum.co/api/?type=hipster-centric&sentences=6');
         const ipsum = await response.json();
         const ipsumContainers = Array.from(document.querySelectorAll('.ipsumContainer'));
         ipsumContainers.forEach(container => {

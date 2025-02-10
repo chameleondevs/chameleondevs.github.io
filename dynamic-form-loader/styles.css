@@ -83,6 +83,21 @@ body {
     margin: 0 auto;
 }
 
+.toggle-button {
+    display: none;
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background-color: var(--color-ui);
+    color: var(--color-white);
+    border: none;
+    border-radius: 5px;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 20px;
+    z-index: 1000; /* Ensure it is above other elements */
+}
+
 @media (max-width: 768px) {
     .sidebar {
         width: 100%;
@@ -99,22 +114,13 @@ body {
     .content {
         margin-left: 0;
     }
+
+    .toggle-button {
+        display: block;
+    }
 }
 
 .hidden {
     display: none;
 }
 
-.toggle-button {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background-color: var(--color-ui);
-    color: var(--color-white);
-    border: none;
-    border-radius: 5px;
-    padding: 10px;
-    cursor: pointer;
-    font-size: 20px;
-    z-index: 1000; /* Ensure it is above other elements */
-}

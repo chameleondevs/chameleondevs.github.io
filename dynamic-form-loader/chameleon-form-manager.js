@@ -313,7 +313,7 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             this.saveConfig('featureFlags', urlParams.get('featureFlags'));
         }
         if (urlParams.get('feature')) {
-            config.featureFlags = urlParams.get('feature');
+            config.feature = urlParams.get('feature');
             this.saveConfig('feature', urlParams.get('feature'));
         }
         if (urlParams.get('isConsentStatementAboveNavigation')) {

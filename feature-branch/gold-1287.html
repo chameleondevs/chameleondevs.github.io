@@ -16,6 +16,33 @@
       <!-- START: MVF Widget -->
       <div id="ExpertMarketWidget1" style="height:450px; max-width:800px; border: 1px solid #3652a1; border-radius: 6px; box-shadow: 0.75rem 0.75rem 0 rgb(54 82 161 / 20%); margin: auto"></div>
       <script type="text/javascript" src="https://GOLD-1287.chameleon.staging.mvfglobal.com/formLoader.min.js"></script>
+      <script type="text/javascript">
+        (function(h, o, u, url, globalVar) {
+            h = h[globalVar] = h[globalVar] || { q: [], onReady: function(c) { h.q.push(c); } };
+            
+            var script = o.createElement(u);  // Use a new variable instead of `d`
+            script.async = 1;
+            script.src = url;
+
+            var firstScript = o.getElementsByTagName(u)[0];
+            firstScript.parentNode.insertBefore(script, firstScript);
+
+        })(window, document, 'script', 'https://www.datadoghq-browser-agent.com/us1/v6/datadog-rum.js', 'DD_RUM');
+
+        window.DD_RUM.onReady(function() {
+            window.DD_RUM.init({
+                clientToken: 'pub3d83c15e03ff1c297b2e4e6c090853ae',
+                applicationId: '67f3fda3-fd03-4eae-9301-7ee0bb2cf18f',
+                site: 'datadoghq.com',
+                service: 'ulpn-fargate',
+                env: 'stg9',
+                sessionSampleRate: 100,
+                sessionReplaySampleRate: 100,
+                defaultPrivacyLevel: 'mask-user-input',
+            });
+        });
+
+      </script>
       <script type='text/javascript'>
           window.chameleonTestSettings = {
             features: ['smartAdvance'],
@@ -50,33 +77,6 @@
           };
           var formWidgetInfoObject = runFormWidgetLoader(inputData);
       </script>
-            <script type="text/javascript">
-              (function(h, o, u, url, globalVar) {
-                  h = h[globalVar] = h[globalVar] || { q: [], onReady: function(c) { h.q.push(c); } };
-                  
-                  var script = o.createElement(u);  // Use a new variable instead of `d`
-                  script.async = 1;
-                  script.src = url;
-      
-                  var firstScript = o.getElementsByTagName(u)[0];
-                  firstScript.parentNode.insertBefore(script, firstScript);
-      
-              })(window, document, 'script', 'https://www.datadoghq-browser-agent.com/us1/v6/datadog-rum.js', 'DD_RUM');
-      
-              window.DD_RUM.onReady(function() {
-                  window.DD_RUM.init({
-                      clientToken: 'pub3d83c15e03ff1c297b2e4e6c090853ae',
-                      applicationId: '67f3fda3-fd03-4eae-9301-7ee0bb2cf18f',
-                      site: 'datadoghq.com',
-                      service: 'ulpn-fargate',
-                      env: 'stg9',
-                      sessionSampleRate: 100,
-                      sessionReplaySampleRate: 100,
-                      defaultPrivacyLevel: 'mask-user-input',
-                  });
-              });
-      
-            </script>
       <!-- END: MVF Widget -->
     </main>
   </body>

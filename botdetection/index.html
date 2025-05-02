@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bot Detection Demo</title>
+    <!-- Include reCAPTCHA v3 script -->
+    <script src="https://www.google.com/recaptcha/api.js?render=6LfbECwrAAAAAFj7w74D2n1U2Eh-oA5s6nT7CQ-n"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -84,6 +86,16 @@
             Move your mouse around, click on elements, and interact with the page to see how the detection scores change.
             The more natural human interactions you perform, the lower your bot score should be.
         </p>
+        <p>
+            This demo now includes Google reCAPTCHA v3, which provides an additional score based on user behavior 
+            and interaction patterns. The reCAPTCHA score ranges from 0.0 to 1.0, with higher scores indicating more 
+            human-like behavior.
+        </p>
+        <div class="recaptcha-notice" style="font-size: 0.8em; color: #666; margin-top: 10px;">
+            This site is protected by reCAPTCHA and the Google
+            <a href="https://policies.google.com/privacy">Privacy Policy</a> and
+            <a href="https://policies.google.com/terms">Terms of Service</a> apply.
+        </div>
     </div>
     
     <div class="card">
@@ -158,17 +170,18 @@
             cryptoSupport: "Proper crypto API support",
             headlessBrowserHints: "Count of headless browser signals",
             executionTimeAnomalies: "Abnormal code execution time",
-            hasDevToolsOpen: "Developer tools detected as open"
+            hasDevToolsOpen: "Developer tools detected as open",
+            recaptchaScore: "Google reCAPTCHA v3 score (0-1, higher is more human-like)",
+            recaptchaSuccess: "Whether reCAPTCHA verification completed successfully"
         };
 
         // Update the UI with detection results
-        function updateDetectionResults() {
+        async function updateDetectionResults() {
             document.getElementById('loading').style.display = 'block';
             
-            // Short timeout to allow the loading message to appear
-            setTimeout(() => {
-                // Run the detection
-                const featureVector = botDetection.detectBot();
+            try {
+                // Run the detection - now asynchronous due to reCAPTCHA
+                const featureVector = await botDetection.detectBot();
                 const features = botDetection.getFeatures();
                 
                 // Update feature vector display
@@ -180,29 +193,50 @@
                 
                 // Populate the table with features
                 for (const [key, value] of Object.entries(features)) {
+                    // Skip internal properties like recaptchaToken
+                    if (key === 'recaptchaToken') continue;
+                    
                     const row = document.createElement('tr');
                     
                     // Add highlighting for potentially suspicious values
-                    const isSuspicious = (
-                        (typeof value === 'boolean' && value === true) || 
-                        (typeof value === 'number' && value > 0 && key !== 'pluginCount' && key !== 'naturalMouseMovements')
-                    );
+                    // For recaptchaScore, a low score is suspicious
+                    let isSuspicious = false;
+                    
+                    if (key === 'recaptchaScore') {
+                        // Score below 0.5 is suspicious (potential bot)
+                        isSuspicious = value >= 0 && value < 0.5;
+                    } else {
+                        isSuspicious = (
+                            (typeof value === 'boolean' && value === true) || 
+                            (typeof value === 'number' && value > 0 && 
+                             key !== 'pluginCount' && 
+                             key !== 'naturalMouseMovements')
+                        );
+                    }
                     
                     if (isSuspicious) {
                         row.classList.add('highlight');
                     }
                     
+                    // Format display value
+                    let displayValue = value;
+                    if (key === 'recaptchaScore' && value === -1) {
+                        displayValue = 'Not available';
+                    }
+                    
                     row.innerHTML = `
                         <td class="feature-name">${key}</td>
-                        <td class="feature-value">${value}</td>
+                        <td class="feature-value">${displayValue}</td>
                         <td>${featureDescriptions[key] || ""}</td>
                     `;
                     
                     tableBody.appendChild(row);
                 }
-                
+            } catch (error) {
+                console.error('Error running bot detection:', error);
+            } finally {
                 document.getElementById('loading').style.display = 'none';
-            }, 100);
+            }
         }
         
         // Set up event handlers

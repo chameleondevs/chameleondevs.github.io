@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Chameleon Test Page" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Staging Feature Branch Chameleon Embed GOLD-1485</title>
+  </head>
+  <body>
+    <main>
+      <h1>Google address - Advanced Embed Staging Feature Branch GOLD-1485</h1>
+      <script type='text/javascript' src='https://GOLD-1485.chameleon.staging.mvfglobal.com/mvfGtmTranslationLayer.min.js'></script>
+      <script type='text/javascript' src='https://GOLD-1485.chameleon.staging.mvfglobal.com/browserBackIntercept.min.js'></script>
+      <!-- START: MVF Widget -->
+      <script type="text/javascript" src="https://GOLD-1485.chameleon.staging.mvfglobal.com/formLoader.min.js"></script>
+      <div id="ExpertMarketWidget1" style="height:450px; max-width:800px; border: 1px solid #3652a1; border-radius: 6px; box-shadow: 0.75rem 0.75rem 0 rgb(54 82 161 / 20%); margin: auto"></div>
+      <script type='text/javascript'>
+          window.chameleonTestSettings = {
+            // features: ['smartAdvance'],
+          }
+          var inputData = {
+            formId: '9977',
+            containerId: "ExpertMarketWidget1",
+            height: 450,
+            env: 'staging/GOLD-1485',
+            campaignId: '645e18ae2f65b',
+            dynamicHeight: true,
+            autoScroll: true,
+            betaFontOverride: "Public Sans",
+            borderEnabled: false,
+            belowFold: false,
+            themeName: 'custom',
+            paletteOverrides: {
+              answerSelectedColor: "#12bd9c",
+              answerBackgroundColor: "#ffffff",
+              widgetBackgroundColor: "#fdfdfd",
+              answerUnselectedColor: "#949494",
+              continueButtonColor: "#3754a0",
+              continueButtonHoverColor: "#5c78c7",
+              backButtonColor: "#ededed",
+              backButtonHoverColor: "#dfdfdf",
+              secondaryBackgroundColor: "#eaf7fe",
+              scrollIndicatorColor: "#4f4f4f",
+              primaryTextColor: "#000000",
+              continueButtonTextColor: "#ffffff",
+              secondaryTextColor: "#4f4f4f",
+            },
+          };
+          var formWidgetInfoObject = runFormWidgetLoader(inputData);
+      </script>
+
+      <!-- END: MVF Widget -->
+    </main>
+  </body>
+</html>

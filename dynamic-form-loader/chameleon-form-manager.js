@@ -22,6 +22,8 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
             { label: 'Rhubarb', value: 'rhubarb' },
             { label: 'Atlantic', value: 'atlantic' },
             { label: 'Indigo', value: 'indigo' },
+            { label: 'Apricot', value: 'apricot' },
+            { label: 'Aurora', value: 'aurora' },
             { label: 'GoWizard', value: 'gowizard' },
             { label: 'Custom', value: 'custom' }
         ];

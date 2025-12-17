@@ -1,0 +1,81 @@
+<!-- find deployed at https://chameleondevs.github.io/feature-branch/jeremy/appointments-9953-ES.html -->
+<!DOCTYPE html>
+<html lang="en">
+<script>
+  const SCRIPTS = {
+    MVF_GTM_TRANSLATION_LAYER: {
+      EU: "https://chameleon-frontend-eu.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      NA: "https://chameleon-frontend-na.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      STG_A5: "https://chameleon-frontend-a5.staging.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      BRANCH: "https://gold-1947.chameleon.staging.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      DEV: "../Projects/chameleon/mvf_gtm_translation_layer/mvfGtmTranslationLayer.js"
+    },
+    BROWSER_BACK_INTERCEPT: {
+      EU: "https://chameleon-frontend-eu.mvfglobal.com/browserBackIntercept.min.js",
+      NA: "https://chameleon-frontend-na.mvfglobal.com/browserBackIntercept.min.js",
+      STG_A5: "https://chameleon-frontend-a5.staging.mvfglobal.com/browserBackIntercept.min.js",
+      BRANCH: "https://gold-1947.chameleon.staging.mvfglobal.com/browserBackIntercept.min.js",
+      DEV: "../Projects/chameleon/browser_back_intercept/browserBackIntercept.js"
+    },
+    FORM_LOADER: {
+      EU: "https://chameleon-frontend-eu.mvfglobal.com/formLoader.min.js",
+      NA: "https://chameleon-frontend-na.mvfglobal.com/formLoader.min.js",
+      STG_A5: "https://chameleon-frontend-a5.staging.mvfglobal.com/formLoader.min.js",
+      BRANCH: "https://gold-1947.chameleon.staging.mvfglobal.com/formLoader.min.js",
+      DEV: "../Projects/chameleon/form_loader_and_snippet/formLoader.js"
+    }
+  }
+
+  const TESTING_FORMS = {
+    EU: {
+      APPOINTMENTS_ES: "15490",
+    },
+    NA: {
+
+    },
+    STAGING_A: {
+      APPOINTMENTS_ES: "9953",
+    }
+  };
+</script>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+</head>
+
+<body>
+  <main>
+    <script type="text/javascript">
+    </script>
+    <script>
+      document.write('<script src="' + SCRIPTS.FORM_LOADER.EU + '"><\/script>');
+      document.write('<script src="' + SCRIPTS.MVF_GTM_TRANSLATION_LAYER.EU + '"><\/script>');
+      document.write('<script src="' + SCRIPTS.BROWSER_BACK_INTERCEPT.EU + '"><\/script>');
+    </script>
+    <script type="text/javascript">
+      const env = {
+        DEV: "dev",
+        EU: "eu",
+        NA: "na",
+        STG: "staging",
+        STG_A5: "a5.staging",
+        BRANCH: "staging/GOLD-1947" // update this to your feature branch if using
+      }
+
+      var inputData = {
+        // formId: TESTING_FORMS.STAGING_A.SUPPLIER_MATCH,
+        formId: TESTING_FORMS.EU.APPOINTMENTS_ES,
+        env: env.EU,
+        dynamicHeight: false,
+        autoScroll: false,
+        height: 300,
+        eventHandlers: {},
+      };
+      var formWidgetInfoObject = runFormWidgetLoader(inputData);
+    </script>
+  </main>
+</body>
+
+</html>

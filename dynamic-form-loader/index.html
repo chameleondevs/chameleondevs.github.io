@@ -10,6 +10,7 @@
     <script src="./datalayer-logger.js"></script>
     <script src="./chameleon-form-manager.js" defer></script>
     <script src="./ipsum-manager.js" defer></script>
+    <script src="./survicate-manager.js" defer></script>
     <script>
         // Intercepts all fetch requests and logs them to the console
         window.fetch = (function (fetch) {
@@ -26,9 +27,10 @@
 <body>
     <button id="toggleSidebar" aria-label="Toggle Sidebar" class="toggle-button">☰</button>
     <div class="sidebar">
-        <lytics-manager></lytics-manager>
         <chameleon-form-manager></chameleon-form-manager>
         <datalayer-logger></datalayer-logger>
+        <survicate-manager></survicate-manager>
+        <lytics-manager></lytics-manager>
         <ipsum-manager></ipsum-manager>
     </div>
     <div class="content">

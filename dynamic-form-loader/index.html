@@ -10,6 +10,7 @@
     <script src="./datalayer-logger.js"></script>
     <script src="./chameleon-form-manager.js" defer></script>
     <script src="./ipsum-manager.js" defer></script>
+    <script src="./survicate-manager.js" defer></script>
     <script>
         // Intercepts all fetch requests and logs them to the console
         window.fetch = (function (fetch) {
@@ -22,23 +23,14 @@
         })(window.fetch);
     </script>
 
-    <script type="text/javascript">
-        (function (w) {
-        var s = document.createElement('script');
-        s.src = 'https://survey.survicate.com/workspaces/29e48a862a073ee0a0a9f821d49f1da3/web_surveys.js';
-        s.async = true;
-        var e = document.getElementsByTagName('script')[0];
-        e.parentNode.insertBefore(s, e);
-        })(window);
-    </script>
-
 </head>
 <body>
     <button id="toggleSidebar" aria-label="Toggle Sidebar" class="toggle-button">☰</button>
     <div class="sidebar">
-        <lytics-manager></lytics-manager>
         <chameleon-form-manager></chameleon-form-manager>
         <datalayer-logger></datalayer-logger>
+        <survicate-manager></survicate-manager>
+        <lytics-manager></lytics-manager>
         <ipsum-manager></ipsum-manager>
     </div>
     <div class="content">

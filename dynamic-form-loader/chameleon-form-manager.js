@@ -493,11 +493,6 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         translationLayer.src = `${jsHost}/mvfGtmTranslationLayer.min.js`;
         container.appendChild(translationLayer);
 
-        const botDetectionTag = document.createElement('script');
-        botDetectionTag.src = `${jsHost}/programmaticAccessDetection.min.js`;
-        botDetectionTag.async = true;
-        container.appendChild(botDetectionTag);
-
         const formConfigTag = document.createElement('script');
         formConfigTag.innerHTML = `
             window.chameleonTestSettings = {

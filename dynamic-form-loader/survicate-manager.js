@@ -13,6 +13,13 @@ customElements.define('survicate-manager', class SurvicateManager extends HTMLEl
                     <zui-input name="workspaceId" id="workspaceId" value="29e48a862a073ee0a0a9f821d49f1da3"></zui-input>
                 </div>
                 <div>
+                    <zui-label>Manual Event:</zui-label>
+                    <div class="manualEventContainer">
+                        <zui-input name="manualEventName" id="manualEventName" value="thankYouPageReached" placeholder="Enter event name"></zui-input>
+                        <zui-button id="triggerManualEvent" label="Trigger Event" version="primary"></zui-button>
+                    </div>
+                </div>
+                <div>
                     <zui-label>Events:</zui-label>
                     <zui-log-screen class="logContainer"></zui-log-screen>
                 </div>
@@ -37,6 +44,18 @@ customElements.define('survicate-manager', class SurvicateManager extends HTMLEl
             }
             .footerbutton {
                 flex: 1 1 auto;
+            }
+            .manualEventContainer {
+                display: flex;
+                flex-direction: row;
+                gap: 10px;
+                align-items: center;
+            }
+            .manualEventContainer zui-input {
+                flex: 1 1 auto;
+            }
+            .manualEventContainer zui-button {
+                flex: 0 0 auto;
             }
             .logItem {
                 padding: 5px;
@@ -72,6 +91,9 @@ customElements.define('survicate-manager', class SurvicateManager extends HTMLEl
         });
         this.shadowRoot.getElementById('workspaceId').addEventListener('zui-change', (e) => {
             this.workspaceId = e.detail.value;
+        });
+        this.shadowRoot.getElementById('triggerManualEvent').addEventListener('click', () => {
+            this.triggerManualEvent();
         });
         this.workspaceId = this.shadowRoot.getElementById('workspaceId').getAttribute('value');
     }
@@ -166,6 +188,42 @@ customElements.define('survicate-manager', class SurvicateManager extends HTMLEl
                 console.error(`Failed to add listener for ${eventName}:`, e);
             }
         });
+
+        // Setup Chameleon event integration
+        this.setupChameleonEvents();
+    }
+
+    setupChameleonEvents = () => {
+        const setUpChameleonEvents = () => {
+            if (typeof window._sva === 'undefined' || typeof window.formWidgetInfoObject === 'undefined') {
+                return;
+            }
+
+            window.formWidgetInfoObject.registerEventHandler('thankYouPageReached', function() {
+                if (window._sva && typeof window._sva.invokeEvent === 'function') {
+                    window._sva.invokeEvent('thankYouPageReached');
+                    this.logEvent('ChameleonEventTriggered', { event: 'thankYouPageReached' });
+                }
+            }.bind(this));
+        };
+
+        // Check if both are already available
+        if (typeof window.formWidgetInfoObject !== 'undefined' && typeof window._sva !== 'undefined') {
+            setUpChameleonEvents();
+        } else {
+            // Poll for both to be available
+            let intervals = 20;
+            const interval = setInterval(() => {
+                intervals--;
+                if (typeof window.formWidgetInfoObject !== 'undefined' && typeof window._sva !== 'undefined') {
+                    clearInterval(interval);
+                    setUpChameleonEvents();
+                }
+                if (intervals === 0) {
+                    clearInterval(interval);
+                }
+            }, 500);
+        }
     }
 
     logEvent = (eventType, data) => {
@@ -194,6 +252,34 @@ customElements.define('survicate-manager', class SurvicateManager extends HTMLEl
             }
             return `<strong>${key}</strong>: ${typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? value : JSON.stringify(value)}`;
         }).join('<br>');
+    }
+
+    triggerManualEvent = () => {
+        if (!window._sva) {
+            this.logEvent('ManualEventError', { error: 'Survicate _sva object not available. Please load Survicate first.' });
+            return;
+        }
+
+        if (typeof window._sva.invokeEvent !== 'function') {
+            this.logEvent('ManualEventError', { error: 'invokeEvent function not available on _sva object' });
+            return;
+        }
+
+        const eventNameInput = this.shadowRoot.getElementById('manualEventName');
+        const eventName = eventNameInput.shadowRoot?.querySelector('input')?.value?.trim() || 
+                         eventNameInput.getAttribute('value')?.trim();
+
+        if (!eventName) {
+            this.logEvent('ManualEventError', { error: 'Event name is required' });
+            return;
+        }
+
+        try {
+            window._sva.invokeEvent(eventName);
+            this.logEvent('ManualEventTriggered', { event: eventName });
+        } catch (error) {
+            this.logEvent('ManualEventError', { error: error.message, event: eventName });
+        }
     }
 });
 

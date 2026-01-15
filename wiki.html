@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="UTF-8">
+  <!-- Material Theme for a neat wiki look -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net">
+</head>
+<body>
+  <div id="app">Loading wiki...</div>
+  <script>
+    window.$docsify = {
+      // Point this to your Bitbucket raw URL (latest version)
+      // Example: 'bitbucket.org'
+      basePath: 'https://bitbucket.org/mvfglobal/chameleon/raw/master/',
+      homepage: 'README.md', // The specific file to load first
+      loadSidebar: false,    // Set to true if you have a _sidebar.md
+      name: 'My Bitbucket Wiki',
+    }
+  </script>
+  <!-- Main Docsify script from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/docsify/4.13.1/docsify.min.js"></script>
+</body>
+</html>

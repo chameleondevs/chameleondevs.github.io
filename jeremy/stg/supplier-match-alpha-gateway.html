@@ -1,0 +1,126 @@
+<!-- find deployed at https://chameleondevs.github.io/jeremy/stg/supplier-match.html -->
+<!DOCTYPE html>
+<html lang="en">
+<script>
+  const SCRIPTS = {
+    MVF_GTM_TRANSLATION_LAYER: {
+      EU: "https://chameleon-frontend-eu.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      NA: "https://chameleon-frontend-na.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      STG: "https://chameleon-frontend-staging.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      STG_A5: "https://chameleon-frontend-a5.staging.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      BRANCH: "https://gold-1947.chameleon.staging.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      DEV: "../Projects/chameleon/mvf_gtm_translation_layer/mvfGtmTranslationLayer.js"
+    },
+    BROWSER_BACK_INTERCEPT: {
+      EU: "https://chameleon-frontend-eu.mvfglobal.com/browserBackIntercept.min.js",
+      NA: "https://chameleon-frontend-na.mvfglobal.com/browserBackIntercept.min.js",
+      STG: "https://chameleon-frontend-staging.mvfglobal.com/browserBackIntercept.min.js",
+      STG_A5: "https://chameleon-frontend-a5.staging.mvfglobal.com/browserBackIntercept.min.js",
+      BRANCH: "https://gold-1947.chameleon.staging.mvfglobal.com/browserBackIntercept.min.js",
+      DEV: "../Projects/chameleon/browser_back_intercept/browserBackIntercept.js"
+    },
+    FORM_LOADER: {
+      EU: "https://chameleon-frontend-eu.mvfglobal.com/formLoader.min.js",
+      NA: "https://chameleon-frontend-na.mvfglobal.com/formLoader.min.js",
+      STG: "https://chameleon-frontend-staging.mvfglobal.com/formLoader.min.js",
+      STG_A5: "https://chameleon-frontend-a5.staging.mvfglobal.com/formLoader.min.js",
+      BRANCH: "https://gold-1947.chameleon.staging.mvfglobal.com/formLoader.min.js",
+      DEV: "../Projects/chameleon/form_loader_and_snippet/formLoader.js"
+    }
+  }
+
+  const TESTING_FORMS = {
+    EU: {
+      RADIO_WITH_ICONS: "13228",
+      STANDARD_TESTING_FORM: "12584",
+      RADIO_NO_ICONS: "13232",
+      TEXTFIELD_US_ZIP: "13232",
+      SELECT: "13233",
+      CHECKBOXES_NO_ICONS: "13237",
+      CHECKBOXES_WITH_ICONS: "15593",
+      TEXTFIELD_EMAIL: "13238",
+      TEXTFIELD: "13239",
+      AUTOCOMPLETE: "13259",
+      PHONE_NUMBER: "13261",
+      TCPA_US: "13398",
+      TCPA_UK: "13399",
+      TWO_COMPONENTS: "13400",
+      NOT_AUTO_AND_AUTO_ADVANCE: "13403",
+      CONDITIONAL_OR: "13561",
+      CONDITIONAL_AND: "13562",
+      DATEPICKER: "13633",
+      GOOGLE_ADDRESS_INPUT: "13864",
+      DATADOG_SYNTHETIC_SMOKE_TESTS: "14467",
+      DATADOG_E2E_SUBMISSION: "14902",
+      MAXIMUM_HEIGHT: "14910",
+      SUPPLIER_MATCH: "15424"
+    },
+    NA: {
+      RADIO_WITH_ICONS: "6208",
+      STANDARD_TESTING_FORM: "6207",
+      RADIO_NO_ICONS: "6209",
+      TEXTFIELD_US_ZIP: "6209",
+      SELECT: "6210",
+      CHECKBOXES_NO_ICONS: "6211",
+      CHECKBOXES_WITH_ICONS: "7281",
+      TEXTFIELD_EMAIL: "6212",
+      TEXTFIELD: "6213",
+      AUTOCOMPLETE: "6214",
+      PHONE_NUMBER: "6215",
+      TCPA_US: "6216",
+      TCPA_UK: "6217",
+      TWO_COMPONENTS: "6218",
+      NOT_AUTO_AND_AUTO_ADVANCE: "6219",
+      CONDITIONAL_OR: "6220",
+      CONDITIONAL_AND: "6221",
+      DATEPICKER: "6222",
+      GOOGLE_ADDRESS_INPUT: "6223",
+      DATADOG_SYNTHETIC_SMOKE_TESTS: "6536",
+      DATADOG_E2E_SUBMISSION: "6743",
+      MAXIMUM_HEIGHT: "6759",
+      SUPPLIER_MATCH: "7034"
+    },
+    STAGING_A: {
+      SUPPLIER_MATCH: "9991",
+    }
+  };
+</script>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+</head>
+
+<body>
+  <main>
+    <script>
+      document.write('<script src="' + SCRIPTS.FORM_LOADER.STG + '"><\/script>');
+      document.write('<script src="' + SCRIPTS.MVF_GTM_TRANSLATION_LAYER.STG + '"><\/script>');
+      document.write('<script src="' + SCRIPTS.BROWSER_BACK_INTERCEPT.STG + '"><\/script>');
+    </script>
+    
+    <script type="text/javascript">
+      const env = {
+        DEV: "dev",
+        EU: "eu",
+        NA: "na",
+        STG: "staging",
+        STG_A5: "a5.staging",
+        BRANCH: "staging/test-gateway-alpha" // update this to your feature branch if using
+      }
+
+      var inputData = {
+        formId: TESTING_FORMS.STAGING_A.SUPPLIER_MATCH,
+        env: env.BRANCH,
+        dynamicHeight: true,
+        autoScroll: false,
+        height: 300,
+      };
+
+      var formWidgetInfoObject = runFormWidgetLoader(inputData);
+   </script>
+  </main>
+</body>
+
+</html>

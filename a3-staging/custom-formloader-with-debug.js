@@ -1163,10 +1163,10 @@ function runFormWidgetLoader(partnerSiteConfig) {
     const resultsIFrame =
       window.__private__.preloadedResultsIFrames[correspondingChameleonIFrameId]
         .iFrame || document.getElementById(resultsIFrameId);
-console.log('DEBUG - revealFullPageResultsFrontend() params', params)
-console.log('DEBUG - resultsIFrame', resultsIFrame)
-console.log('DEBUG - correspondingChameleonIFrameId', correspondingChameleonIFrameId)
-console.log('DEBUG - window.__private__.preloadedResultsIFrames[correspondingChameleonIFrameId]', window.__private__.preloadedResultsIFrames[correspondingChameleonIFrameId])
+console.info('DEBUG - revealFullPageResultsFrontend() params', params)
+console.info('DEBUG - resultsIFrame', resultsIFrame)
+console.info('DEBUG - correspondingChameleonIFrameId', correspondingChameleonIFrameId)
+console.info('DEBUG - window.__private__.preloadedResultsIFrames[correspondingChameleonIFrameId]', window.__private__.preloadedResultsIFrames[correspondingChameleonIFrameId])
     if (
       resultsIFrame &&
       correspondingChameleonIFrameId &&
@@ -1174,8 +1174,8 @@ console.log('DEBUG - window.__private__.preloadedResultsIFrames[correspondingCha
         .status === 'ready'
     ) {
       resultsIFrame.style.visibility = 'visible';
-console.log('DEBUG - Make ResultsPage visible!')
-console.log('DEBUG - params.brandMatches', params.brandMatches)
+console.info('DEBUG - Make ResultsPage visible!')
+console.info('DEBUG - params.brandMatches', params.brandMatches)
       if (params.brandMatches) {
         const brandMatches = JSON.stringify(params.brandMatches);
         resultsIFrame.contentWindow.postMessage(

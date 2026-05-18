@@ -1,0 +1,70 @@
+<!-- find deployed at https://chameleondevs.github.io/jeremy/branch/dynamicSelectAndConnect.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+  const SCRIPTS = {
+    MVF_GTM_TRANSLATION_LAYER: {
+      EU: "https://chameleon-frontend-eu.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      NA: "https://chameleon-frontend-na.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      STG: "https://chameleon-frontend-staging.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      STG_A5: "https://chameleon-frontend-a5.staging.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      BRANCH: "https://gold-2253.chameleon.staging.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+      DEV: "../Projects/chameleon/mvf_gtm_translation_layer/mvfGtmTranslationLayer.js"
+    },
+    BROWSER_BACK_INTERCEPT: {
+      EU: "https://chameleon-frontend-eu.mvfglobal.com/browserBackIntercept.min.js",
+      NA: "https://chameleon-frontend-na.mvfglobal.com/browserBackIntercept.min.js",
+      STG: "https://chameleon-frontend-staging.mvfglobal.com/browserBackIntercept.min.js",
+      STG_A5: "https://chameleon-frontend-a5.staging.mvfglobal.com/browserBackIntercept.min.js",
+      BRANCH: "https://gold-2253.chameleon.staging.mvfglobal.com/browserBackIntercept.min.js",
+      DEV: "../Projects/chameleon/browser_back_intercept/browserBackIntercept.js"
+    },
+    FORM_LOADER: {
+      EU: "https://chameleon-frontend-eu.mvfglobal.com/formLoader.min.js",
+      NA: "https://chameleon-frontend-na.mvfglobal.com/formLoader.min.js",
+      STG: "https://chameleon-frontend-staging.mvfglobal.com/formLoader.min.js",
+      STG_A5: "https://chameleon-frontend-a5.staging.mvfglobal.com/formLoader.min.js",
+      BRANCH: "https://gold-2253.chameleon.staging.mvfglobal.com/formLoader.min.js",
+      DEV: "../Projects/chameleon/form_loader_and_snippet/formLoader.js"
+    }
+  }
+  </script>
+</head>
+
+<body>
+  <main>
+    <script type="text/javascript">
+      window.chameleonTestSettings = {
+        features: ["dynamicSelectAndConnect:4"],
+      };
+    </script>
+
+<script>
+  document.write('<script src="' + SCRIPTS.FORM_LOADER.BRANCH + '"><\/script>');
+  document.write('<script src="' + SCRIPTS.MVF_GTM_TRANSLATION_LAYER.BRANCH + '"><\/script>');
+  document.write('<script src="' + SCRIPTS.BROWSER_BACK_INTERCEPT.BRANCH + '"><\/script>');
+</script>
+
+<script type="text/javascript">
+  const env = {
+    DEV: "dev",
+    EU: "eu",
+    NA: "na",
+    STG: "staging",
+    STG_A5: "a5.staging",
+    BRANCH: "staging/GOLD-2253" // update this to your feature branch if using
+  }
+
+  var inputData = {
+    formId: "10130",
+    env: env.BRANCH,
+    dynamicHeight: true,
+  };
+var formWidgetInfoObject = runFormWidgetLoader(inputData);
+
+</script>
+</main>
+</body>
+
+</html>

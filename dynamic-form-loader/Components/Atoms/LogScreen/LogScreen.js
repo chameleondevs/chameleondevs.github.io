@@ -15,14 +15,12 @@ export class LogScreen extends HTMLElement {
           border-radius: 8px;
           margin: 10px 0;
           font-family: var(--font-family-monospace), monospace;
-          font-weight: bold;
           overflow: hidden;
           overflow-y: auto;
           height: 400px;
-          text-shadow: 0 0 6px #737dff;
           scrollbar-width: thin;
           scrollbar-color: #152B49FF #1d4172;
-          box-shadow: inset 0 0 30px #131d27, 0 0 18px -3px #3544fa33;
+          box-shadow: inset 0 0 30px #131d27;
           border-top: 3px solid var(--color-cream);
           border-left: 3px solid var(--color-cream);
           border-bottom: 3px solid var(--color-white);

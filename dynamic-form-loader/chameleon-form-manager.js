@@ -204,6 +204,21 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         return env;
     }
 
+    // formLoader picks the production region from `domain`, never from `env`, so
+    // a production env that does not send it falls back to eu — the widget host,
+    // the datadog origin and the results page host all land on eu. Staging and
+    // dev resolve without it, so it is only emitted for production.
+    getDomainForEnv = (env) => {
+        switch (env) {
+            case 'production.na':
+                return 'na';
+            case 'production.eu':
+                return 'eu';
+            default:
+                return undefined;
+        }
+    }
+
     getTagColorForEnv = (env) => {
         switch (env) {
             case 'dev':
@@ -507,9 +522,10 @@ customElements.define('chameleon-form-manager', class ChameleonFormManager exten
         const scriptTag = document.createElement('script');
         const dynamicHeight = this.config.isDynamicHeight ? 'true' : 'false';
         const isConsentStatementAboveNavigation = this.config.isConsentStatementAboveNavigation ? 'true' : 'false';
+        const domain = this.getDomainForEnv(env);
         scriptTag.innerHTML = `
             var inputData = {
-                env: '${this.formatEnvForConfig(env, feature)}',
+                env: '${this.formatEnvForConfig(env, feature)}',${domain ? `\n                domain: '${domain}',` : ''}
                 formId: '${formId}',
                 dynamicHeight: ${dynamicHeight},
                 autoScroll: true,

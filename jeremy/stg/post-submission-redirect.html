@@ -1,0 +1,262 @@
+<!-- GOLD-2306: partner redirect on thankYouPageRequested, with post-submission pages in the journey.
+     Form 10130 = staging dynamic Select and Connect form. The flag is turned on below via
+     chameleonTestSettings.features, exactly as do-not-change/dynamicSelectAndConnect.html does.
+
+     Tick "Preserve log" in the DevTools console before submitting, otherwise the redirect wipes
+     the event log. Set REDIRECT_DELAY_MS above 0 to hold the redirect and watch what the widget
+     still has in flight. -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GOLD-2306 thankYouPageRequested redirect</title>
+  <script>
+    const SCRIPTS = {
+      MVF_GTM_TRANSLATION_LAYER: {
+        STG: "https://chameleon-frontend-staging.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+        BRANCH: "https://gold-2306.chameleon.staging.mvfglobal.com/mvfGtmTranslationLayer.min.js",
+        DEV: "../Projects/chameleon/mvf_gtm_translation_layer/mvfGtmTranslationLayer.js"
+      },
+      BROWSER_BACK_INTERCEPT: {
+        STG: "https://chameleon-frontend-staging.mvfglobal.com/browserBackIntercept.min.js",
+        BRANCH: "https://gold-2306.chameleon.staging.mvfglobal.com/browserBackIntercept.min.js",
+        DEV: "../Projects/chameleon/browser_back_intercept/browserBackIntercept.js"
+      },
+      FORM_LOADER: {
+        STG: "https://chameleon-frontend-staging.mvfglobal.com/formLoader.min.js",
+        BRANCH: "https://gold-2306.chameleon.staging.mvfglobal.com/formLoader.min.js",
+        DEV: "../Projects/chameleon/form_loader_and_snippet/formLoader.js"
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <main>
+    <h1>GOLD-2306 &mdash; partner thank you page redirect</h1>
+    <p> Form <code>10130</code> on staging with <code>dynamicSelectAndConnect</code> on. The
+      <code>thankYouPageRequested</code> handler redirects to <code id="redirect-target"></code>, the way an embedding
+      WordPress site would redirect to its own thank you page. Open the console (with <em>Preserve log</em> ticked) to
+      see the event order. </p>
+    <script type="text/javascript">
+      window.chameleonTestSettings = {
+        features: ["dynamicSelectAndConnect:4"],
+      };
+    </script>
+    <script>
+      document.write('<script src="' + SCRIPTS.FORM_LOADER.STG + '"><\/script>');
+      document.write('<script src="' + SCRIPTS.MVF_GTM_TRANSLATION_LAYER.STG + '"><\/script>');
+      document.write('<script src="' + SCRIPTS.BROWSER_BACK_INTERCEPT.STG + '"><\/script>');
+    </script>
+    <script type="text/javascript">
+      const env = {
+        DEV: "dev",
+        STG: "staging",
+        BRANCH: "staging/GOLD-2306" // only valid once the branch is deployed
+      }
+
+      const REDIRECT_URL = "https://www.google.com";
+      const REDIRECT_DELAY_MS = 0; // raise this to let in-flight widget requests finish
+      const HIDE_WIDGET_BEFORE_REDIRECT = true; // set false to see the Chameleon TYP flash
+
+      document.getElementById("redirect-target").textContent = REDIRECT_URL;
+
+      function logEvent(eventType, eventInfo) {
+        console.info(
+          "[GOLD-2306] +" + Math.round(performance.now()) + "ms " + eventType,
+          eventInfo
+        );
+      }
+
+      /**
+       * Hides the widget in the same task the postMessage is delivered, so the iframe is not
+       * composited again before the browser leaves for REDIRECT_URL. Without this the Chameleon
+       * thank you page is painted for the whole duration of the redirect (GOLD-2306).
+       */
+      function hideWidget(iFrameId) {
+        const iFrameElement = document.getElementById(iFrameId);
+
+        if (!iFrameElement) return;
+
+        iFrameElement.style.visibility = "hidden";
+      }
+
+      function redirectToPartnerThankYouPage(eventInfo) {
+        logEvent("thankYouPageRequested -> redirecting in " + REDIRECT_DELAY_MS + "ms", eventInfo);
+
+        if (HIDE_WIDGET_BEFORE_REDIRECT) {
+          hideWidget(eventInfo.iFrameId);
+        }
+
+        window.setTimeout(function () {
+          window.location.href = REDIRECT_URL;
+        }, REDIRECT_DELAY_MS);
+      }
+
+      var inputData = {
+        formId: "10130",
+        env: env.STG,
+        height: 600,
+        dynamicHeight: true,
+        autoScroll: true,
+        eventHandlers: {
+          initialWidgetLoad: function (eventInfo) {
+            logEvent("initialWidgetLoad", eventInfo);
+          },
+          pageChanged: function (eventInfo) {
+            logEvent("pageChanged", eventInfo);
+          },
+          formSubmit: function (eventInfo) {
+            logEvent("formSubmit", eventInfo);
+          },
+          submissionStatusUpdated: function (eventInfo) {
+            logEvent("submissionStatusUpdated", eventInfo);
+          },
+          selectAndConnectShown: function (eventInfo) {
+            logEvent("selectAndConnectShown", eventInfo);
+          },
+          formError: function (eventInfo) {
+            logEvent("formError", eventInfo);
+          },
+          thankYouPageReached: function (eventInfo) {
+            logEvent("thankYouPageReached", eventInfo);
+          },
+          thankYouPageRequested: redirectToPartnerThankYouPage,
+        },
+      };
+
+      var formWidgetInfoObject = runFormWidgetLoader(inputData);
+    </script>
+    <script>
+      // Add a small delay to ensure the widget is loaded before checking
+
+
+      window.chameleonTestSettings = window.chameleonTestSettings || {}
+      window.chameleonTestSettings.features = window.chameleonTestSettings.features || []
+      window.chameleonTestSettings.features.push('loadFromMosaicSubdomain')
+
+      window.chameleon = window.chameleon || {}
+      var inputData9dd7967140 = {
+        formId: '7860',
+        themeName: 'custom',
+        domain: 'na',
+        env: 'prod',
+        headerEnabled: false,
+        borderEnabled: false,
+        height: 500,
+        belowFold: false,
+        dynamicHeight: true,
+        autoScroll: true,
+        isConsentStatementAboveNavigation: false,
+        fontOverride: 'Montserrat',
+        maxWidth: 675,
+        paletteOverrides: {
+          "widgetBackgroundColor": "rgba(253,253,253,0)",
+          "secondaryBackgroundColor": "rgb(234,234,234)",
+          "scrollIndicatorColor": "#323232",
+          "primaryTextColor": "#000000",
+          "secondaryTextColor": "#0a0a0a",
+          "answerUnselectedColor": "#949494",
+          "answerSelectedColor": "#00B59B",
+          "answerBackgroundColor": "#FFFFFF",
+          "continueButtonColor": "#1c9077",
+          "continueButtonHoverColor": "#1c9077",
+          "continueButtonTextColor": "#FFFFFF",
+          "backButtonColor": "#EDEDED",
+          "backButtonHoverColor": "#DFDFDF",
+          "progressBarFilledColor": "#53d75e"
+        },
+        eventHandlers: {
+          formSubmit: function (eventInfo) { window.sid = eventInfo.submissionId; },
+          questionAnswered: function (eventInfo) {
+            const iframeForHeight = document.querySelector('iframe[id^="' + eventInfo.iFrameId + '"]');
+            if (iframeForHeight) {
+              window._chameleonIframeHeight = iframeForHeight.offsetHeight;
+            }
+            document.dispatchEvent(new CustomEvent("chameleon/questionAnswered", { bubbles: true, detail: { eventInfo } }));
+          },
+          initialWidgetLoad: function (eventInfo) {
+            document.dispatchEvent(new CustomEvent("chameleon/initialWidgetLoad", { bubbles: true, detail: { eventInfo } }));
+          },
+          customerMatchesRequested: function (eventInfo) {
+            window.customerMatchesRequested = true;
+            fetch(flexi_comp_vars.ajaxurl, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded", },
+              body: new URLSearchParams({ action: "get_thank_you_page_for_brand_ids", data: eventInfo?.brandMatches ? JSON.stringify(eventInfo.brandMatches) : "[]", })
+            })
+              .then((response) => { return response.json(); })
+              .then((data) => { window.customerPotentialMatches = data ? data : []; });
+          },
+          thankYouPageRequested: function (eventInfo) {
+            const { brandMatches } = eventInfo;
+
+            if (brandMatches) {
+              window.sessionStorage.setItem("brandMatches", JSON.stringify(brandMatches));
+
+              window.dataLayer.forEach((event) => {
+                if (typeof event.formSubcategoryGUID !== "undefined") {
+                  window.sessionStorage.setItem("formSubcategoryGUID", event.formSubcategoryGUID);
+                }
+              });
+
+              if (window.customerPotentialMatches && brandMatches.length === 1) {
+                const matchingElement = window.customerPotentialMatches.find(customerPotentialMatch => brandMatches.some(brandMatch => brandMatch.id === customerPotentialMatch.brand_id)
+                );
+                if (matchingElement && matchingElement.url) {
+                  window.redirectUrlAfterSubmission = matchingElement.url;
+                }
+              }
+            }
+            eventInfo.event = "resultsPageURL";
+            eventInfo.pageUrl = window.location.origin + window.location.pathname;
+            eventInfo.pageUrlFull = window.location.href;
+            eventInfo.redirectUrl = window.redirectUrlAfterSubmission || null;
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push(eventInfo);
+
+            if (window.redirectUrlAfterSubmission) {// make sure to hide the form if we are redirecting to a thank you page
+
+              const iframeEl = document.querySelector('iframe[id^="' + eventInfo.iFrameId + '"]');
+              if (iframeEl) {
+                const iframeHeight = (window._chameleonIframeHeight !== undefined ? window._chameleonIframeHeight : iframeEl.offsetHeight) + "px";
+                iframeEl.style.height = iframeHeight;
+                iframeEl.closest("div").style.maxHeight = iframeHeight;
+                iframeEl.closest("div").style.visibility = "hidden";
+              }
+
+              const loader = document.createElement("div"), overlay = document.querySelector(".js-chameleon-overlay.chameleon-overlay");
+              loader.classList.add("hidden"); loader.classList.add("chameleon-page-loader"); loader.innerHTML = "<svg class=\"spinner\" width=\"140px\" height=\"140px\" viewBox=\"0 0 140 140\" xmlns=\"http:\/\/www.w3.org\/2000\/svg\"><circle class=\"path\" fill=\"none\" stroke-width=\"15\" stroke-linecap=\"round\" cx=\"70\" cy=\"70\" r=\"45\"><\/circle><\/svg><div class=\"loader-header-text loader-text\" style=\"color: rgb(20,0,91)\">Thanks! We\u2019re processing your request...<\/div>"; document.querySelector("body").appendChild(loader);
+              if (overlay) { loader.style.backgroundColor = overlay.style.backgroundColor; } else { loader.style.backgroundColor = "rgb(247,248,252)"; } loader.classList.remove("hidden");
+
+              setTimeout(() => {
+                const excludingParams = ["ref2", "ref3"];
+                const currentUrlParams = new URLSearchParams(window.location.search);
+                excludingParams.forEach(param => { currentUrlParams.delete(param); });
+                if (!currentUrlParams.has("cid") && "" !== "") {
+                  currentUrlParams.set("cid", "");
+                }
+                const extraUrlParams = currentUrlParams.size ? `&${currentUrlParams.toString()}` : "";
+                window.location.href = redirectUrlAfterSubmission + '?sid=' + window.sid + '&fid=17877' + extraUrlParams;
+              }, 3000);
+            }
+          },
+        }
+      };// Register this config with the Flexi Components Chameleon hook (see flexi-comp-chameleon-hook.js).
+      (window.flexiCompChameleonConfigs = window.flexiCompChameleonConfigs || []).push(inputData9dd7967140);// We need formWidgetInfoObject variable for browserBackIntercept.min.js
+      var formWidgetInfoObject = formWidgetInfoObject9dd7967140 = runFormWidgetLoader(inputData9dd7967140); var mvfFormWidgetLoadingErrors9dd7967140 = formWidgetInfoObject9dd7967140.loadingErrors;
+      setTimeout(function () {
+        const pageURL = new URL(window.location), allowedParams = [
+          'text', 'touchpointId', 'ctaType', 'component', 'position', 'totalPositions', 'supplier'
+        ];
+        const dataToSend = {};
+        allowedParams.forEach((param) => { if (pageURL.searchParams.get(param)) { dataToSend[param] = pageURL.searchParams.get(param); } });
+        if (Object.keys(dataToSend).length > 0) { window.formWidgetInfoObject9dd7967140.sendSessionDataToMvfFormWidget(dataToSend); }
+      }, 5000);
+    </script>
+  </main>
+</body>
+
+</html>

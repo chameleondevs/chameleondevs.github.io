@@ -63,9 +63,9 @@
 <body>
   <main>
     <script>
-      document.write('<script src="' + SCRIPTS.FORM_LOADER.BRANCH + '"><\/script>');
-      document.write('<script src="' + SCRIPTS.MVF_GTM_TRANSLATION_LAYER.BRANCH + '"><\/script>');
-      document.write('<script src="' + SCRIPTS.BROWSER_BACK_INTERCEPT.BRANCH + '"><\/script>');
+      document.write('<script src="' + SCRIPTS.FORM_LOADER.STG_A5 + '"><\/script>');
+      document.write('<script src="' + SCRIPTS.MVF_GTM_TRANSLATION_LAYER.STG_A5 + '"><\/script>');
+      document.write('<script src="' + SCRIPTS.BROWSER_BACK_INTERCEPT.STG_A5 + '"><\/script>');
     </script>
 
     <script type="text/javascript">
@@ -81,7 +81,7 @@
       var inputData = {
         // ?formId=9684 for the radio tiles
         formId: new URLSearchParams(window.location.search).get("formId") || TESTING_FORMS.STAGING_A.CONDITIONAL_OR,
-        env: env.BRANCH,
+        env: env.STG_A5, // a5 runs the CRO-718 build (3.38.3-dev.0)
         dynamicHeight: true,
         autoScroll: false,
       };

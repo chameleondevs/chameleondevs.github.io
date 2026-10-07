@@ -32,7 +32,11 @@
     NA: {
     },
     STAGING_A: {
-      CAR_API: "9740", // swap for a form with radio and checkbox questions
+      CAR_API: "9740", // no visible radios or checkboxes
+      // Checkbox tiles + "Other" box (p1), checkbox list + "Other" (p4), radio list (p6)
+      CONDITIONAL_OR: "9716",
+      // Radio tiles (p1), radio list (p2)
+      RADIOS: "9684",
     }
   };
 
@@ -75,7 +79,8 @@
       }
 
       var inputData = {
-        formId: TESTING_FORMS.STAGING_A.CAR_API,
+        // ?formId=9684 for the radio tiles
+        formId: new URLSearchParams(window.location.search).get("formId") || TESTING_FORMS.STAGING_A.CONDITIONAL_OR,
         env: env.BRANCH,
         dynamicHeight: true,
         autoScroll: false,

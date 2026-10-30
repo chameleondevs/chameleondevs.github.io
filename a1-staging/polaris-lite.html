@@ -10,73 +10,38 @@
       body { font-family: sans-serif; margin: 16px; }
       table { border-collapse: collapse; margin-bottom: 16px; }
       th, td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; vertical-align: top; }
-      tr.current { background: #eaf7fe; }
-      .missing { color: #999; }
+      code { background: #f4f4f4; padding: 0 3px; }
     </style>
   </head>
   <body>
     <main>
-      <h1>Polaris Lite - Advanced Embed A1 Staging</h1>
-      <p>Postage Meters US forms with Polaris on in Capture stg-a. The Results Page loads from chameleon-results-a1. Current form: <strong id="currentForm"></strong></p>
+      <h1>Polaris Lite - Advanced Embed A1 Staging (form 10176)</h1>
+      <p>Postage Meters US form in Capture stg-a. The Results Page loads from chameleon-results-a1. Run the steps in order: each one changes form 10176 in Capture, then runs the form on this page. The last step puts the form back.</p>
+      <p>Reserved ZIPs only work on staging (chameleon-gateway mock, GOLD-2679): <code>00001</code> live 1 match, <code>00002</code> live 3, <code>00003</code> 7day 1, <code>00004</code> 7day 3, <code>00005</code> no matches, <code>10001</code> real Leads (live 1).</p>
+      <p>Lite checks: the Results Page opens on "Request sent", there is no Request Pricing step, <code>SubmitLead</code> has <code>submissionType: polarisLite</code> and no <code>bsaSubmissionId</code>, <code>formSubmit</code> fires once, and <code>resultsPageSubmit</code> does not fire.</p>
 
-      <h2>A. Match states (form 10176, pick by ZIP)</h2>
-      <p>Type the ZIP into the postcode question. The reserved ZIPs only work on staging (chameleon-gateway mock, GOLD-2679).</p>
       <table>
-        <tr><th>ZIP</th><th>Matches</th><th>Expected</th></tr>
-        <tr><td>00001</td><td>live, 1</td><td>Lite</td></tr>
-        <tr><td>00002</td><td>live, 3</td><td>Lite</td></tr>
-        <tr><td>00003</td><td>7day, 1</td><td>Lite</td></tr>
-        <tr><td>00004</td><td>7day, 3</td><td>Lite</td></tr>
-        <tr><td>00005</td><td>none</td><td>Full, fallback brands</td></tr>
-        <tr><td>10001</td><td>real Leads, live, 1</td><td>Lite</td></tr>
+        <tr><th>Step</th><th>Change form 10176 in Capture</th><th>ZIP</th><th>Expected</th></tr>
+        <tr><td>1</td><td>Start state: Polaris on, Polaris Lite on, Supplier Match "Hide on single match" off, no GDPR/single supplier</td><td>00001, 00002, 00003, 00004, 10001</td><td>Lite</td></tr>
+        <tr><td>2</td><td>No change</td><td>00005</td><td>Full: fallback brands, Request Pricing step</td></tr>
+        <tr><td>3</td><td>No change (Polaris tab): try turning "Hide on single match" on in the Supplier Match</td><td>-</td><td>Save refused while Polaris is on</td></tr>
+        <tr><td>4</td><td>Polaris Lite off</td><td>00002</td><td>Full Polaris: Results Page with the Request Pricing step</td></tr>
+        <tr><td>5</td><td>Polaris off</td><td>00002</td><td>Non-Polaris journey, no Results Page</td></tr>
+        <tr><td>6</td><td>Supplier Match "Hide on single match" on, then open the Polaris tab</td><td>-</td><td>Polaris and Lite switches disabled with a message; switching Polaris on is refused</td></tr>
+        <tr><td>7</td><td>"Hide on single match" off, Polaris on, Polaris Lite on, then set the GDPR/single supplier to FP Mailing</td><td>00002</td><td>Full, predefined supplier journey (matchLevel PREDEFINED)</td></tr>
+        <tr><td>8</td><td>Clear the GDPR/single supplier, then move the phone page after the supplier-match page</td><td>00002</td><td>Full: BSA lead sent as today, no Lite label</td></tr>
+        <tr><td>9</td><td>Move the phone page before the postcode page</td><td>00002</td><td>Full: BSA lead sent at the phone step, no Lite label</td></tr>
+        <tr><td>10</td><td>Put the pages back (postcode, email, phone, loader, supplier match) and confirm the step 1 settings</td><td>00002</td><td>Lite again</td></tr>
       </table>
-
-      <h2>B. Form configuration (one cloned form per scenario)</h2>
-      <p>Use ZIP 00002 unless the scenario says otherwise.</p>
-      <table id="scenarios">
-        <tr><th>Scenario</th><th>Form setup in Capture</th><th>Expected</th><th>Form</th></tr>
-      </table>
+      <p>If a Capture change doesn't show on the form after a minute, the a1 form page may still be cached.</p>
 
       <!-- START: MVF Widget -->
       <div id="ExpertMarketWidget1" style="height:450px; max-width:800px; border: 1px solid #3652a1; border-radius: 6px; box-shadow: 0.75rem 0.75rem 0 rgb(54 82 161 / 20%); margin: auto"></div>
 
       <script type="text/javascript" src="https://chameleon-frontend-a1.staging.mvfglobal.com/formLoader.min.js"></script>
       <script type='text/javascript'>
-          // Fill in each clone's form id once it exists in Capture stg-a.
-          var scenarios = [
-            { id: 'A', formId: '10176', setup: 'Polaris and Lite on (reference form)', expected: 'Depends on ZIP, see table A' },
-            { id: 'B1', formId: '', setup: 'Polaris on, Polaris Lite off', expected: 'Full Polaris: Results Page with the Request Pricing step' },
-            { id: 'B2', formId: '', setup: 'GDPR / single supplier set (e.g. FP Mailing)', expected: 'Full, predefined supplier journey (matchLevel PREDEFINED)' },
-            { id: 'B3', formId: '', setup: 'Phone page moved after the supplier-match page', expected: 'Full: BSA lead sent as today' },
-            { id: 'B4', formId: '', setup: 'Phone page moved before the postcode page', expected: 'Full: BSA lead at the phone step, no Lite label' },
-            { id: 'B5', formId: '', setup: 'Polaris off', expected: 'Non-Polaris journey, no Results Page' },
-          ];
-
-          var requestedFormId = new URLSearchParams(window.location.search).get('formId');
-          var formId = /^\d+$/.test(requestedFormId || '') ? requestedFormId : '10176';
-          document.getElementById('currentForm').textContent = formId;
-
-          var table = document.getElementById('scenarios');
-          scenarios.forEach(function (scenario) {
-            var row = table.insertRow();
-            if (scenario.formId === formId) row.className = 'current';
-            [scenario.id, scenario.setup, scenario.expected].forEach(function (text) {
-              row.insertCell().textContent = text;
-            });
-            var formCell = row.insertCell();
-            if (scenario.formId) {
-              var link = document.createElement('a');
-              link.href = '?formId=' + scenario.formId;
-              link.textContent = scenario.formId;
-              formCell.appendChild(link);
-            } else {
-              formCell.textContent = 'not created yet';
-              formCell.className = 'missing';
-            }
-          });
-
           var inputData = {
-            formId: formId,
+            formId: '10176',
             campaignId: '645e18ae2f65b',
             containerId: "ExpertMarketWidget1",
             height: 450,

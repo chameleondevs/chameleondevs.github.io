@@ -6,18 +6,77 @@
     <meta name="description" content="Chameleon Test Page" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>A1 Staging Polaris Lite</title>
+    <style>
+      body { font-family: sans-serif; margin: 16px; }
+      table { border-collapse: collapse; margin-bottom: 16px; }
+      th, td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; vertical-align: top; }
+      tr.current { background: #eaf7fe; }
+      .missing { color: #999; }
+    </style>
   </head>
   <body>
     <main>
       <h1>Polaris Lite - Advanced Embed A1 Staging</h1>
-      <p>Postage Meters US form (a copy of 10120) with Polaris and Polaris Lite on in Capture stg-a. Enter postcode 10001 so staging Leads returns a match. The Results Page loads from chameleon-results-a1.</p>
+      <p>Postage Meters US forms with Polaris on in Capture stg-a. The Results Page loads from chameleon-results-a1. Current form: <strong id="currentForm"></strong></p>
+
+      <h2>A. Match states (form 10176, pick by ZIP)</h2>
+      <p>Type the ZIP into the postcode question. The reserved ZIPs only work on staging (chameleon-gateway mock, GOLD-2679).</p>
+      <table>
+        <tr><th>ZIP</th><th>Matches</th><th>Expected</th></tr>
+        <tr><td>00001</td><td>live, 1</td><td>Lite</td></tr>
+        <tr><td>00002</td><td>live, 3</td><td>Lite</td></tr>
+        <tr><td>00003</td><td>7day, 1</td><td>Lite</td></tr>
+        <tr><td>00004</td><td>7day, 3</td><td>Lite</td></tr>
+        <tr><td>00005</td><td>none</td><td>Full, fallback brands</td></tr>
+        <tr><td>10001</td><td>real Leads, live, 1</td><td>Lite</td></tr>
+      </table>
+
+      <h2>B. Form configuration (one cloned form per scenario)</h2>
+      <p>Use ZIP 00002 unless the scenario says otherwise.</p>
+      <table id="scenarios">
+        <tr><th>Scenario</th><th>Form setup in Capture</th><th>Expected</th><th>Form</th></tr>
+      </table>
+
       <!-- START: MVF Widget -->
       <div id="ExpertMarketWidget1" style="height:450px; max-width:800px; border: 1px solid #3652a1; border-radius: 6px; box-shadow: 0.75rem 0.75rem 0 rgb(54 82 161 / 20%); margin: auto"></div>
 
       <script type="text/javascript" src="https://chameleon-frontend-a1.staging.mvfglobal.com/formLoader.min.js"></script>
       <script type='text/javascript'>
+          // Fill in each clone's form id once it exists in Capture stg-a.
+          var scenarios = [
+            { id: 'A', formId: '10176', setup: 'Polaris and Lite on (reference form)', expected: 'Depends on ZIP, see table A' },
+            { id: 'B1', formId: '', setup: 'Polaris on, Polaris Lite off', expected: 'Full Polaris: Results Page with the Request Pricing step' },
+            { id: 'B2', formId: '', setup: 'GDPR / single supplier set (e.g. FP Mailing)', expected: 'Full, predefined supplier journey (matchLevel PREDEFINED)' },
+            { id: 'B3', formId: '', setup: 'Phone page moved after the supplier-match page', expected: 'Full: BSA lead sent as today' },
+            { id: 'B4', formId: '', setup: 'Phone page moved before the postcode page', expected: 'Full: BSA lead at the phone step, no Lite label' },
+            { id: 'B5', formId: '', setup: 'Polaris off', expected: 'Non-Polaris journey, no Results Page' },
+          ];
+
+          var requestedFormId = new URLSearchParams(window.location.search).get('formId');
+          var formId = /^\d+$/.test(requestedFormId || '') ? requestedFormId : '10176';
+          document.getElementById('currentForm').textContent = formId;
+
+          var table = document.getElementById('scenarios');
+          scenarios.forEach(function (scenario) {
+            var row = table.insertRow();
+            if (scenario.formId === formId) row.className = 'current';
+            [scenario.id, scenario.setup, scenario.expected].forEach(function (text) {
+              row.insertCell().textContent = text;
+            });
+            var formCell = row.insertCell();
+            if (scenario.formId) {
+              var link = document.createElement('a');
+              link.href = '?formId=' + scenario.formId;
+              link.textContent = scenario.formId;
+              formCell.appendChild(link);
+            } else {
+              formCell.textContent = 'not created yet';
+              formCell.className = 'missing';
+            }
+          });
+
           var inputData = {
-            formId: '10176',
+            formId: formId,
             campaignId: '645e18ae2f65b',
             containerId: "ExpertMarketWidget1",
             height: 450,

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Chameleon Test Page" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>A1 Staging Polaris Lite</title>
+    <title>Polaris Lite DES-2667 Branch</title>
     <style>
       body { font-family: sans-serif; margin: 16px; }
       table { border-collapse: collapse; margin-bottom: 16px; }
@@ -15,33 +15,31 @@
   </head>
   <body>
     <main>
-      <h1>Polaris Lite - Advanced Embed A1 Staging (form <span id="currentForm"></span>)</h1>
-      <p>Forms in Capture stg-a with Polaris and Polaris Lite on. The Results Page loads from chameleon-results-a1. Type the ZIP into the postcode question to pick the scenario. The reserved ZIPs only work on staging (chameleon-gateway mock, GOLD-2679).</p>
-      <p>Form: <a href="?formId=10176">10176 Postage Meters US</a> (no negotiation tips) | <a href="?formId=10134">10134 POS US</a> (negotiation tips on the Results Page)</p>
+      <h1>Polaris Lite - DES-2667 Results Page design (form <span id="currentForm"></span>)</h1>
+      <p>chameleon branch <code>feature/gold-2671</code> (PR #94) with the DES-2667 Results Page branch (chameleon-results PR #32), on Capture stg-a forms with Polaris and Polaris Lite on. Type the ZIP into the postcode question to pick the scenario. The reserved ZIPs only work on staging (chameleon-gateway mock, GOLD-2679).</p>
+      <p>Form: <a href="?formId=10176">10176 Postage Meters US</a> | <a href="?formId=10134">10134 POS US</a> (brand details and Questions to ask)</p>
 
       <table>
         <tr><th>ZIP</th><th>Matches</th><th>Expected</th></tr>
-        <tr><td>00001</td><td>live, 1</td><td>Lite</td></tr>
-        <tr><td>00002</td><td>live, 3</td><td>Lite</td></tr>
-        <tr><td>00003</td><td>7day, 1</td><td>Lite</td></tr>
-        <tr><td>00004</td><td>7day, 3</td><td>Lite</td></tr>
-        <tr><td>00005</td><td>none</td><td>Full: fallback brands, Request Pricing step</td></tr>
-        <tr><td>10001</td><td>real Leads, live, 1</td><td>Lite</td></tr>
+        <tr><td>00001</td><td>live, 1</td><td>Lite, single provider ("Your match is ready!")</td></tr>
+        <tr><td>00002</td><td>live, 3</td><td>Lite, three providers</td></tr>
+        <tr><td>00003</td><td>7day, 1</td><td>Lite, single provider</td></tr>
+        <tr><td>00004</td><td>7day, 3</td><td>Lite, three providers</td></tr>
+        <tr><td>00005</td><td>none</td><td>Lite on the fallback brands (since PR #106)</td></tr>
+        <tr><td>10001</td><td>real Leads, live, 1</td><td>Lite (10176 only)</td></tr>
       </table>
-      <p>Add a ZIP+4 suffix to any reserved ZIP to pick the AI match reasons (e.g. <code>00002-0002</code>):</p>
-      <table>
-        <tr><th>Suffix</th><th>AI match reasons</th><th>Expected on the Results Page</th></tr>
-        <tr><td>none</td><td>success</td><td>A reason and match score for every provider</td></tr>
-        <tr><td>-0002</td><td>empty</td><td>"What others like" fallback for every provider</td></tr>
-        <tr><td>-0003</td><td>service error</td><td>The AI failure handling (fallback)</td></tr>
-      </table>
-      <p>Lite checks: the Results Page opens on "Request sent", there is no Request Pricing step, <code>SubmitLead</code> has <code>submissionType: polarisLite</code> and no <code>bsaSubmissionId</code>, <code>formSubmit</code> fires once, and <code>resultsPageSubmit</code> does not fire.</p>
+      <p>Add a ZIP+4 suffix to pick the AI match reasons: none = success, <code>-0002</code> = empty (fallback), <code>-0003</code> = service error.</p>
+      <p>Design checks: loader rows tick (Answers submitted, Match reasoning finalized, Requesting pricing); "Pricing requested" pill on each card; View details; Add to compare raises the sticky bar and Compare enables at two providers.</p>
 
       <!-- START: MVF Widget -->
       <div id="ExpertMarketWidget1" style="height:450px; max-width:800px; border: 1px solid #3652a1; border-radius: 6px; box-shadow: 0.75rem 0.75rem 0 rgb(54 82 161 / 20%); margin: auto"></div>
 
-      <script type="text/javascript" src="https://chameleon-frontend-a1.staging.mvfglobal.com/formLoader.min.js"></script>
+      <script type="text/javascript" src="https://gold-2671.chameleon.staging.mvfglobal.com/formLoader.min.js"></script>
       <script type='text/javascript'>
+          window.chameleonTestSettings = {
+            features: ['enableResultsPage:des-2667-polaris-lite'],
+          };
+
           var formIds = ['10176', '10134'];
           var requestedFormId = new URLSearchParams(window.location.search).get('formId');
           var formId = formIds.indexOf(requestedFormId) > -1 ? requestedFormId : '10176';
@@ -52,7 +50,7 @@
             campaignId: '645e18ae2f65b',
             containerId: "ExpertMarketWidget1",
             height: 450,
-            env: 'a1.staging',
+            env: 'staging/gold-2671',
             dynamicHeight: true,
             autoScroll: true,
             borderEnabled: false,
